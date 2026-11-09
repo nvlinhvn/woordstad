@@ -34,6 +34,22 @@ p { margin:0 0 15px; }
 .secondary { background:var(--white); border:1px solid var(--line); }
 .quiet { background:none; border:0; color:var(--green); padding:8px 3px; }
 .pill { padding:5px 10px; border-radius:20px; background:#eaf0dc; color:var(--green); font-size:11px; font-weight:650; }
+.word-bank { display:flex; flex-wrap:wrap; gap:8px; padding:14px 16px; background:var(--white); border:1px solid var(--line); border-radius:14px; margin-bottom:20px; }
+.fill-list { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; }
+.fill-row { display:flex; align-items:baseline; gap:8px; padding:10px 14px; background:var(--white); border:1px solid var(--line); border-radius:12px; }
+.fill-num { font-size:12px; color:var(--muted); min-width:18px; }
+.fill-mark { font-size:16px; min-width:20px; text-align:center; }
+.fill-mark.correct { color:#3a7a2e; }
+.fill-mark.wrong { color:#c0392b; }
+.fill-sentence { flex:1; font-size:15px; line-height:1.6; }
+.fill-input { border:none !important; border-bottom:2px solid var(--muted) !important; background:transparent !important; font-family:inherit; font-size:15px; color:var(--text); width:90px !important; padding:0 2px 1px !important; outline:none; vertical-align:baseline; border-radius:0 !important; box-shadow:none !important; display:inline; }
+.fill-input:focus { border-bottom-color:var(--green) !important; outline:none !important; box-shadow:none !important; border-top:none !important; border-left:none !important; border-right:none !important; }
+.fill-input.correct { border-bottom-color:#3a7a2e; color:#3a7a2e; }
+.fill-input.wrong { border-bottom-color:#c0392b; color:#c0392b; }
+.fill-correction { font-size:13px; color:#3a7a2e; font-style:italic; margin-left:4px; }
+.fill-result { padding:16px 20px; border-radius:14px; display:flex; flex-direction:column; gap:4px; margin-bottom:16px; }
+.fill-result.pass { background:#eaf5e4; border:1px solid #9bcb83; }
+.fill-result.fail { background:#fdf0ee; border:1px solid #e8b3ad; }
 .hero { display:grid; grid-template-columns:1.25fr 1fr; gap:30px; align-items:center; padding:5px 0 28px; }
 .hero p { color:var(--muted); max-width:470px; }
 .hero-art { background:#e6ecd7; border-radius:24px; overflow:hidden; }
@@ -336,6 +352,9 @@ const Engine = (() => {
     const topicMap = new Map(previous.topics.map(topic => [topic.id, topic]));
     for (const topic of next.topics) topicMap.set(topic.id, topic);
     pack.topics = [...topicMap.values()];
+    // drop orphan topics (from old packs) that have no words — they show as broken placeholder cards
+    const usedTopics = new Set(previous.words.map(w => w.topic).concat(next.words.map(w => w.topic)));
+    pack.topics = pack.topics.filter(t => usedTopics.has(t.id));
 
     function invalidate(entityId, skills) {
       for (const skill of skills) {
@@ -616,7 +635,7 @@ const Engine = (() => {
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
 
 /* Word-specific SVG cues: shared drawing primitives, no answer text or emoji. */
-function cueSvg(key, label = 'Memory picture') {
+function cueSvg(key, label = 'Memory picture', topic = '', cueText = '') {
   const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const green='#285b46', cream='#f7f7ef', lime='#dbe8a4', rust='#bc5c33';
   const blue='#b9d1cc', gold='#d6b162', skin='#edd4b2', grey='#8f9e87';
@@ -779,8 +798,471 @@ function cueSvg(key, label = 'Memory picture') {
     case 'apotheek':
       art = rect(66,76,189,96,blue,0,green)+rect(87,104,72,46,cream,0)+rect(185,100,44,72,cream,0)+path('M142 22h34v20h20v34h-20v20h-34V76h-20V42h20Z',green,'none')+circle(219,137,4,gold);
       break;
-    default:
-      art = rect(75,38,170,135,'white',13,grey)+circle(118,83,18,lime)+path('M88 152l53-48 34 29 28-36 30 55Z',blue,'none')+path('M252 53l5-12 6 12 12 5-12 5-6 12-5-12-12-5Z',gold,'none');
+    // Household
+    case 'afwas':
+      art = rect(70,120,180,48,blue,4,green)+path('M70 120q0-20 90-20t90 20','none',green,3)+path('M120 80v60m60-60v60m-30-70v70','none',grey,10)+path('M120 80h10m50 0h10','none',grey,2)+circle(130,102,5,cream)+circle(155,94,4,cream)+circle(180,100,5,cream)+path('M160 38q0-20 0-18','none',green,0)+path('M160 30q-10 0-10 20h20q0-20-10-20Z',grey,'none')+path('M155 30q0-10 10-10t10 10','none',green,3);
+      break;
+    case 'wasmachine':
+      art = rect(60,42,200,138,blue,8,green)+circle(160,120,52,cream,green,5)+circle(160,120,38,blue,green,3)+rect(180,52,14,10,lime,2)+rect(200,52,14,10,gold,2)+rect(220,52,14,10,rust,2);
+      break;
+    case 'koelkast':
+      art = rect(86,28,148,152,blue,8,green)+path('M86 88h148','none',green,3)+rect(220,46,8,30,green,2)+rect(220,104,8,60,green,2)+path('M110 106h60m-60 18h40m-40 18h50','none',grey,2);
+      break;
+    case 'oven':
+      art = rect(60,50,200,120,grey,6,green)+rect(80,68,160,76,cream,4,green)+path('M88 76h144m0 60H88','none',rust,3)+rect(80,148,60,18,green,3)+path('M140 156h30','none',cream,3);
+      break;
+    case 'pan':
+      art = path('M68 80h184l-10 80H78Z',gold,green,3)+ellipse(160,80,92,16,gold)+path('M68 80l-50-4',green,'none')+path('M18 76h50','none',green,8)+ellipse(160,80,92,16,'none');
+      break;
+    case 'koekenpan':
+      art = path('M60 126h200l-6 34H66Z',gold,green,3)+ellipse(160,126,100,20,gold)+path('M60 126l-48 10','none',green,12);
+      break;
+    case 'bord':
+      art = circle(160,100,72,cream,green,4)+circle(160,100,54,'none',green,2)+path('M74 100h6m160 0h6m-83-72v6m0 136v6','none',grey,2);
+      break;
+    case 'glas':
+      art = path('M110 40h100l-14 130H124Z',cream,green,3)+path('M124 170h72','none',blue,8)+path('M110 40h100','none',green,3);
+      break;
+    case 'mes':
+      art = path('M90 90h80l50-4v8l-50-4','none',green,0)+path('M90 90h80l50-4v8l-50-4Z',grey,'none')+rect(60,84,36,26,gold,4,green)+path('M168 94l52-4',grey,'none')+path('M168 90l52-4v8l-52 4','none',grey,0)+path('M168 90l52-4v8l-52 0Z',grey,'none');
+      break;
+    case 'vork':
+      art = rect(148,140,24,36,gold,3,green)+path('M148 140v-20m24 20v-20','none',green,3)+path('M136 80v40h48V80','none',green,3)+path('M148 80V60m8 20V60m8 20V60m8 20V60','none',green,3);
+      break;
+    case 'lepel':
+      art = ellipse(160,72,28,36,gold)+path('M132 108q0 20 28 92m28-92q0 20-28 92','none',green,3)+path('M160 108v80','none',gold,8);
+      break;
+    case 'fles':
+      art = path('M130 60h60v20q20 10 20 40v60H110v-60q0-30 20-40Z',blue,green,3)+path('M140 50h40v14h-40Z',grey,green,2)+path('M130 80h60','none',green,2);
+      break;
+    case 'emmer':
+      art = path('M96 80h128l-16 96H112Z',blue,green,3)+path('M96 80q0-20 64-20t64 20','none',green,4)+path('M96 80q64-30 128 0','none',green,3);
+      break;
+    case 'bezem':
+      art = path('M100 40l120 120','none',gold,8)+path('M220 160l-50-10-40 20-20-30 50-30Z',lime,green,3)+path('M180 130l-50 30m10-40-40 40m20-50-30 40','none',green,2);
+      break;
+    case 'stofzuiger':
+      art = ellipse(130,120,60,28,grey)+circle(130,120,16,blue,green,3)+path('M190 120q30-60 80-50','none',green,5)+path('M262 60l28 10-8-10 8-10Z',grey,green,3);
+      break;
+    case 'gootsteen':
+      art = rect(60,80,200,96,blue,6,green)+rect(70,90,180,76,cream,4,green)+circle(160,132,8,grey,green,2)+path('M160 72q0-30 0-32','none',grey,6)+path('M160 40q-16 0-16 32h32q0-32-16-32Z',grey,'none')+path('M145 40q0-10 15-10t15 10','none',green,3);
+      break;
+    case 'lamp':
+      art = circle(160,80,48,gold)+path('M136 128h48l-4 24h-40Z',grey,green,3)+path('M148 152h24m-22 10h20','none',green,3)+path('M104 44l10 10m92-10-10 10M160 28v14','none',gold,4);
+      break;
+    case 'spiegel':
+      art = rect(80,30,160,140,gold,6,green)+rect(94,44,132,112,blue,4,green)+path('M108 58l30 30m0-20-10 30','none',cream,3);
+      break;
+    case 'gordijn':
+      art = path('M54 32h212','none',gold,6)+path('M54 32q30 60 0 148','none',blue,28)+path('M266 32q-30 60 0 148','none',blue,28)+path('M54 32q30 30 0 80','none',cream,6)+path('M266 32q-30 30 0 80','none',cream,6);
+      break;
+    case 'bank':
+      art = rect(48,88,224,64,blue,8,green)+rect(48,64,224,30,blue,4,green)+rect(48,64,20,88,blue,4,green)+rect(252,64,20,88,blue,4,green)+path('M68 152v16m184-16v16M68 88v-4m184 0v4','none',green,4);
+      break;
+    case 'kast':
+      art = rect(72,32,176,148,blue,4,green)+path('M160 32v148','none',green,3)+circle(148,108,5,gold,green,2)+circle(172,108,5,gold,green,2)+path('M72 64h176','none',green,2);
+      break;
+    case 'trap':
+      art = path('M60 168h40v-30h40v-30h40v-30h40v-30h40','none',green,5)+path('M60 168v-30h40','none',green,3)+rect(60,162,40,6,gold,0)+rect(100,132,40,6,gold,0)+rect(140,102,40,6,gold,0)+rect(180,72,40,6,gold,0)+rect(220,42,40,6,gold,0);
+      break;
+    // Food & drink
+    case 'brood':
+      art = path('M72 100q0-50 88-50t88 50v60H72Z','#e8c98a',green,3)+path('M110 70l10 80m20-86l10 84m20-84l10 80','none',gold,3);
+      break;
+    case 'ei':
+      art = path('M160 40q40 0 44 60t-44 76t-44-76t44-60Z','#fffde0',green,3)+path('M130 80q10 0 20 10t30-4','none',grey,2);
+      break;
+    case 'melk':
+      art = path('M124 60h72l8 116H116Z',cream,green,3)+path('M116 80h88','none',blue,2)+path('M124 60l16-26h40l16 26','none',green,3)+path('M130 44h60','none',green,2);
+      break;
+    case 'boter':
+      art = rect(80,90,160,66,gold,4,green)+path('M80 104h160','none',cream,2)+path('M200 72l30-20','none',grey,4)+path('M200 52l30 20-30 5Z',grey,'none');
+      break;
+    case 'kip':
+      art = ellipse(150,120,60,40,gold)+circle(150,78,22,gold,green,2)+path('M172 72l14-4-10 8Z',rust,'none')+path('M142 66l-4-12 8 4Z',rust,'none')+path('M210 120q20-10 30 0q0 20-30 10Z',gold,green,2)+path('M120 160l-10 22m20-22-5 22','none',gold,4)+path('M180 160l10 22m-20-22 5 22','none',gold,4);
+      break;
+    case 'vis':
+      art = path('M80 100q0-40 80-40t80 40t-80 40t-80-40Z',blue,green,3)+path('M240 100l30-24v48Z',blue,green,3)+circle(110,88,6,cream,green,2)+circle(108,87,3,green);
+      break;
+    case 'aardappel':
+      art = path('M90 100q0-48 70-48q80 0 80 48q0 54-80 54q-70 0-70-54Z','#c4a96a',green,3)+circle(130,90,4,gold)+circle(170,114,4,gold)+circle(148,78,4,gold);
+      break;
+    case 'tomaat':
+      art = circle(160,108,64,rust,green,4)+path('M140 48l-10-12m30 8v-18m20 14 10-12','none',green,4)+path('M150 44q10-18 20 0','none',green,3);
+      break;
+    case 'appel':
+      art = path('M100 108q0-60 60-60t60 60q0 58-60 58t-60-58Z',rust,green,3)+path('M160 48q0-18 14-22','none',green,4)+path('M160 52q-4-14-18-10','none',lime,3);
+      break;
+    case 'banaan':
+      art = path('M72 140q0-60 56-80q60-22 110-22q30 0 30 16q-60 8-100 40q-36 28-36 56Z',gold,green,3)+path('M72 140q4 24 30 18','none',green,3);
+      break;
+    case 'sinaasappel':
+      art = circle(160,100,66,gold,green,4)+circle(160,100,50,'none',gold,1)+path('M138 46l-6-14m54 14 6-14m-54-2q14-12 28 0','none',green,3)+path('M160 34q-18 8-18 66m36-66q18 8 18 66','none','#d08020',2);
+      break;
+    case 'soep':
+      art = path('M80 100h160l-10 72H90Z',gold,green,3)+ellipse(160,100,80,18,'#f0d090')+path('M120 70q4-20 0-30m20 30q4-20 4-32m20 32q4-20 0-30','none',grey,3);
+      break;
+    case 'taart':
+      art = ellipse(160,120,90,26,'#f0c080')+path('M70 120q0-50 90-50t90 50','none','#f0c080',0)+path('M70 120q0-50 90-50t90 50Z','#f0c080','none')+path('M160 70v-50M70 120l90-50M250 120l-90-50','none',green,3)+circle(160,70,5,gold)+circle(160,20,5,rust)+path('M158 20v-12m4 0v12','none',rust,2);
+      break;
+    case 'ijs':
+      art = path('M120 100h80l-40 80Z',gold,green,3)+circle(160,100,40,rust,green,3)+circle(148,92,6,lime)+circle(170,86,5,gold)+circle(158,76,4,cream);
+      break;
+    case 'thee':
+      art = path('M108 80h104l-10 92H118Z',cream,green,3)+ellipse(160,80,52,12,'#c8b060')+path('M212 80q20 0 20 20t-20 20','none',green,5)+path('M134 66l-6-22m18 18-2-24m18 20 2-24','none',grey,3)+rect(120,168,10,16,gold,0)+path('M126 168q20 0 34-14','none',gold,3);
+      break;
+    case 'wijn':
+      art = path('M130 50h60v40q0 30-30 30t-30-30Z',blue,green,3)+path('M160 120v40','none',green,5)+path('M136 160h48','none',green,5)+path('M130 50q0-8 30-8t30 8','none',green,3);
+      break;
+    case 'bier':
+      art = path('M112 62h96l-8 116H120Z','#d4a020',green,3)+path('M112 62h96q4-16-4-22H116q-8 6-4 22Z',cream,green,3)+circle(140,90,5,cream)+circle(162,100,4,cream)+circle(148,108,6,cream);
+      break;
+    case 'chocolade':
+      art = rect(72,58,176,104,gold,6,green)+path('M72 92h176m0 26H72m-1 26h176','none',green,2)+path('M136 58v104m32-104v104m32-104v104','none',green,2);
+      break;
+    case 'worst':
+      art = path('M68 88q0-28 92-28t92 28q0 32-92 32t-92-32Z',rust,green,3)+path('M68 88q-20-10-18 8t18 16','none',rust,3)+path('M252 88q20-10 18 8t-18 16','none',rust,3);
+      break;
+    case 'ham':
+      art = path('M90 76q0-36 70-36t70 36v64q0 20-70 20t-70-20Z',rust,green,3)+path('M90 76q0-18 70-18t70 18','none',gold,4)+path('M238 108q20-8 24 0t-24 16','none',rust,3);
+      break;
+    // Body parts
+    case 'oog':
+      art = path('M60 100q100-70 200 0q-100 70-200 0Z',cream,green,4)+circle(160,100,28,blue,green,3)+circle(160,100,16,green)+circle(153,93,6,cream);
+      break;
+    case 'oor':
+      art = path('M160 44q44 0 44 56t-44 56q-20 0-20-20q20 0 20-36t-20-36q0-20 20-20Z',skin,green,3)+path('M160 80q16 0 16 20t-16 20','none',green,3);
+      break;
+    case 'neus':
+      art = path('M160 46v60q-22 18-22 34h44q0-16-22-34V46Z',skin,green,3)+circle(144,140,8,skin,green,2)+circle(176,140,8,skin,green,2);
+      break;
+    case 'mond':
+      art = path('M96 90q64-28 128 0','none',green,4)+path('M96 90q0 46 64 46t64-46','none',skin,3)+path('M96 90q64 22 128 0','none',skin,0)+path('M96 90q64 22 128 0Z',cream,'none')+path('M104 108q56 28 112 0','none',rust,2);
+      break;
+    case 'hand':
+      art = rect(124,108,72,60,skin,6,green)+path('M124 108v-20q0-8 10-8t10 8v12m20-14v-22q0-8 10-8t10 8v20m20-16v-18q0-8 10-8t10 8v18','none',skin,0)+path('M124 108v-20q0-8 10-8t10 8v12m20-14v-22q0-8 10-8t10 8v20m20-16v-18q0-8 10-8t10 8v18Z',skin,green,2)+path('M196 110v-14q0-8 10-8t10 8v14','none',skin,0)+path('M196 110v-14q0-8 10-8t10 8v14Z',skin,green,2)+path('M124 116q-12-6-16 4t8 14l8-4','none',skin,0)+path('M124 116q-12-6-16 4t8 14l8-4Z',skin,green,2);
+      break;
+    case 'voet':
+      art = path('M96 80q0-10 64-10t64 10v60q0 24-22 24H96Z',skin,green,3)+path('M224 140q0 20 14 24t12-10','none',skin,3)+circle(108,176,8,skin,green,2)+circle(124,180,8,skin,green,2)+circle(140,182,8,skin,green,2)+circle(156,180,8,skin,green,2)+circle(172,176,8,skin,green,2);
+      break;
+    case 'hart':
+      art = path('M160 152q-80-50-80-90a40 40 0 0 1 80 0 40 40 0 0 1 80 0q0 40-80 90Z',rust,green,3);
+      break;
+    case 'been':
+      art = path('M120 36q0-10 20-10t20 10v60q20 10 20 60v30h-80v-30q0-50 20-60Z',skin,green,3)+path('M100 156h80','none',green,3);
+      break;
+    case 'arm':
+      art = path('M80 56q0-16 20-16h40q16 0 20 16v50q0 10 10 10l50 30q10 6 8 18t-16 10l-52-30q-10-6-20-6H100q-20 0-20-20Z',skin,green,3);
+      break;
+    case 'hoofd':
+      art = circle(160,100,70,skin,green,4)+circle(136,88,7,green)+circle(184,88,7,green)+path('M140 120q20 16 40 0','none',green,3);
+      break;
+    case 'tand':
+      art = path('M116 48h88v80q0 8-10 8h-68q-10 0-10-8Z',cream,green,3)+path('M116 78h88','none',green,2)+path('M126 128v30q0 8-10 8','none',green,3)+path('M194 128v30q0 8 10 8','none',green,3)+path('M160 128v36','none',green,3);
+      break;
+    // Transport
+    case 'auto':
+      art = path('M60 120h200v30q0 10-10 10H70q-10 0-10-10Z',blue,green,3)+path('M60 120q10-38 30-44h140q20 6 30 44','none',blue,3)+path('M78 120q4-28 20-34h124q16 6 20 34','none',cream,0)+path('M78 120q4-28 20-34h124q16 6 20 34Z',cream,'none')+circle(100,160,20,grey,green,4)+circle(220,160,20,grey,green,4)+circle(100,160,8,green)+circle(220,160,8,green)+rect(120,130,32,12,cream,2);
+      break;
+    case 'vliegtuig':
+      art = path('M50 100h220','none',grey,2)+path('M60 100q0-14 20-14l120 0q20 0 20 14t-20 14l-120 0q-20 0-20-14Z',blue,green,3)+path('M140 86l-20-44h30l20 44','none',blue,3)+path('M180 86l20-44h30l-20 44','none',blue,0)+path('M180 86l20-44h30l-20 44Z',blue,'none')+path('M240 104l-4-26h18l-14 26','none',gold,3);
+      break;
+    case 'boot':
+      art = path('M56 128q0-10 10-10h168q10 0 10 10l-16 36H72Z',blue,green,3)+path('M160 128V52','none',gold,4)+path('M160 52l60 40H160Z',cream,green,2)+path('M56 144q52 16 208 0','none',green,2);
+      break;
+    case 'metro':
+      art = rect(52,56,216,112,blue,12,green)+rect(70,76,70,56,cream,4,green)+rect(180,76,70,56,cream,4,green)+circle(96,168,18,grey,green,4)+circle(224,168,18,grey,green,4)+circle(96,168,7,green)+circle(224,168,7,green)+path('M52 100h216','none',green,2)+circle(80,68,5,lime)+circle(104,68,5,lime);
+      break;
+    case 'vrachtwagen':
+      art = rect(130,66,142,104,blue,4,green)+rect(52,100,84,70,grey,4,green)+path('M130 66q0-36-40-36H62q-10 0-10 36','none',grey,3)+rect(62,80,60,26,cream,2)+circle(90,170,20,grey,green,4)+circle(90,170,8,green)+circle(220,170,20,grey,green,4)+circle(220,170,8,green)+circle(248,170,20,grey,green,4)+circle(248,170,8,green);
+      break;
+    // Nature & weather
+    case 'zon':
+      art = circle(160,100,46,gold)+path('M160 40v-20m0 160v-20M100 100H80m160 0h-20M120 60l-14-14m88 88-14-14M200 60l14-14m-88 88 14-14','none',gold,5);
+      break;
+    case 'maan':
+      art = path('M200 50a60 60 0 1 0 0 100a50 50 0 1 1 0-100Z',gold,'none')+circle(190,100,50,'none',green,3);
+      break;
+    case 'wolk':
+      art = circle(130,106,38,cream)+circle(160,90,46,cream)+circle(196,106,34,cream)+rect(92,106,136,44,cream,0)+path('M92 120q38-10 136 0','none',green,0)+path('M92 106q0-18 38-18','none',green,3)+path('M242 106q0-18-46-18','none',green,3)+path('M92 150h136','none',green,3);
+      break;
+    case 'regen':
+      art = circle(130,66,28,blue)+circle(158,54,34,blue)+circle(192,66,26,blue)+rect(102,66,118,28,blue,0)+path('M102 86q0-4 118 0','none',green,2)+path('M94 94h132','none',green,3)+path('M104 108l-12 40m24-42-12 42m24-42-12 42m24-42-12 42m24-42-12 42m24-42-12 42','none',blue,3);
+      break;
+    case 'sneeuw':
+      art = path('M160 50v100m-50-86.6l100 73.2M110 136.6l100-73.2','none',blue,5)+circle(160,100,6,cream,blue,3)+path('M130 50l6 10m-6-10-6 10m56-10 6 10m-6-10-6 10m-50 80 6 10m-6-10-6 10m56-10 6 10m-6-10-6 10M110 80l10 6m-10-6-2-10m80 0 10 6m-10-6-2-10m-78 60-2 10m-8-6 10-4m68 0 10 4m-8 6-2-10','none',blue,3);
+      break;
+    case 'boom':
+      art = rect(148,130,24,48,gold,2,green)+circle(160,90,58,lime,green,4)+circle(136,114,20,lime)+circle(184,114,20,lime);
+      break;
+    case 'hond':
+      art = ellipse(160,124,68,36,gold)+circle(210,92,26,gold,green,3)+path('M210 68l-10-22q-4-8 6-10t10 8l10 24','none',gold,0)+path('M210 68l-10-22q-4-8 6-10t10 8l10 24Z',gold,'none')+path('M184 94l-6-18q-4-10 6-12t10 8l6 16','none',gold,0)+path('M184 94l-6-18q-4-10 6-12t10 8l6 16Z',gold,'none')+path('M228 92q16 4 22 18','none',gold,4)+circle(218,84,4,green)+path('M204 104q8 8 14 4','none',rust,3)+path('M92 140v-16m16 20v-20m224 4v-14m-16 18v-18','none',gold,6);
+      break;
+    case 'kat':
+      art = ellipse(156,136,54,38,grey)+circle(154,90,30,grey,green,3)+path('M130 68l-16-22h20l-4 22m48 0 16-22h-20l4 22','none',grey,0)+path('M130 68l-16-22h20l-4 22Z',grey,'none')+path('M178 68l16-22h-20l4 22Z',grey,'none')+circle(144,88,4,green)+circle(164,88,4,green)+path('M148 98q8 8 16 0','none',rust,3)+path('M140 94h-24m62 0h24','none',grey,2)+path('M210 140q20 0 30-14t0-24','none',grey,4);
+      break;
+    case 'paard':
+      art = ellipse(152,126,72,40,gold)+path('M208 90q8-30 16-54q-6-8-16 0l-8 36','none',gold,0)+path('M208 90q8-30 16-54q-6-8-16 0l-8 36Z',gold,'none')+circle(216,100,22,gold,green,3)+path('M226 92q14-4 18-14','none',gold,6)+circle(226,96,4,green)+path('M220 108q8 4 12 2','none',rust,3)+path('M80 150v28m24-26v26m176-24v24m-24-26v26','none',gold,6)+path('M200 92l-6-52q-2-10 8-10','none',gold,5);
+      break;
+    case 'koe':
+      art = ellipse(154,126,74,42,cream,green,3)+circle(216,96,26,cream,green,3)+path('M190 110l-10-22q-6-8 4-12t12 6l10 22','none',cream,0)+path('M190 110l-10-22q-6-8 4-12t12 6l10 22Z',cream,'none')+path('M80 152v24m24-26v24m180-24v24m-24-26v24','none',cream,6)+rect(180,152,40,10,rust,2)+path('M126 126q10-14 30-12m10-8q18-2 24 14','none',rust,3)+circle(220,90,4,green)+path('M226 104q8 4 10 2','none',rust,2);
+      break;
+    case 'vogel':
+      art = path('M60 100q50-70 100-50t100 50q-50-30-100-10t-100 10Z',blue,green,3)+circle(180,92,8,gold,green,2)+path('M180 84q8-12 20-10','none',gold,3)+path('M160 96q-10 14-14 48','none',gold,4);
+      break;
+    case 'zee':
+      art = path('M40 80q20-20 40 0t40 0t40 0t40 0t40 0t40 0','none',blue,4)+path('M40 106q20-20 40 0t40 0t40 0t40 0t40 0t40 0','none',blue,4)+path('M40 132q20-20 40 0t40 0t40 0t40 0t40 0t40 0','none',blue,4)+path('M40 158q20-20 40 0t40 0t40 0t40 0t40 0t40 0','none',blue,3);
+      break;
+    case 'berg':
+      art = path('M34 168l126-130 126 130Z',grey,green,3)+path('M110 90l50-52 50 52','none',cream,0)+path('M110 90l50-52 50 52Z',cream,'none')+path('M34 168h252','none',green,3);
+      break;
+    case 'rivier':
+      art = path('M60 40q30 30 0 80t30 80','none',blue,20)+path('M60 40q30 30 0 80t30 80','none',green,4)+path('M260 40q-30 30 0 80t-30 80','none',blue,20)+path('M260 40q-30 30 0 80t-30 80','none',green,4);
+      break;
+    // Clothing
+    case 'trui':
+      art = path('M80 72l40-30h80l40 30-28 20-12-10v86H120V82l-12 10Z',blue,green,3)+path('M120 42q0 24 40 24t40-24','none',green,3)+path('M120 168h80','none',green,2)+path('M120 150h80','none',blue,2);
+      break;
+    case 'jurk':
+      art = path('M120 44h80v56q20 40 40 78H80q20-38 40-78Z',blue,green,3)+path('M120 44q0 24 40 24t40-24','none',green,3)+path('M132 60l-12-24m68 24 12-24','none',green,3);
+      break;
+    case 'rok':
+      art = path('M120 60h80l40 110H80Z',blue,green,3)+rect(114,46,92,20,blue,0,green)+path('M120 60q0 18 40 18t40-18','none',green,2);
+      break;
+    case 'hoed':
+      art = ellipse(160,120,100,20,gold)+ellipse(160,120,60,16,gold)+path('M100 120q0-50 60-50t60 50','none',gold,0)+path('M100 120q0-50 60-50t60 50Z',gold,'none')+path('M100 120q60-14 120 0','none',green,3)+rect(80,118,200,6,gold,0,green);
+      break;
+    case 'muts':
+      art = rect(100,90,120,68,blue,8,green)+path('M100 90q0-50 60-50t60 50','none',blue,0)+path('M100 90q0-50 60-50t60 50Z',blue,'none')+path('M88 102h144','none',green,3)+circle(160,40,16,rust,green,3);
+      break;
+    case 'handschoen':
+      art = rect(114,100,72,68,gold,6,green)+path('M114 100v-26q0-8 10-8t10 8v22m18-24v-26q0-8 10-8t10 8v24m18-22v-22q0-8 10-8t10 8v20','none',gold,0)+path('M114 100v-26q0-8 10-8t10 8v22m18-24v-26q0-8 10-8t10 8v24m18-22v-22q0-8 10-8t10 8v20Z',gold,green,2)+path('M186 104v-16q0-8 10-8t10 8v16','none',gold,0)+path('M186 104v-16q0-8 10-8t10 8v16Z',gold,green,2)+path('M114 110q-14-6-18 4t6 14l12-4','none',gold,0)+path('M114 110q-14-6-18 4t6 14l12-4Z',gold,green,2);
+      break;
+    case 'sjaal':
+      art = rect(128,32,64,136,blue,4,green)+path('M128 100h64','none',green,2)+path('M128 170h22m20 0h22m-44 0v14m20-14v18','none',blue,4)+path('M128 32h22m20 0h22m-44 0v-12m20 0v-16','none',blue,4);
+      break;
+    case 'bril':
+      art = circle(110,100,38,'none',green,5)+circle(210,100,38,'none',green,5)+path('M148 100h24','none',green,5)+path('M72 100h-24','none',green,4)+path('M248 100h24','none',green,4);
+      break;
+    case 'zonnebril':
+      art = circle(110,100,38,grey)+circle(210,100,38,grey)+circle(110,100,38,'none',green,5)+circle(210,100,38,'none',green,5)+path('M148 100h24','none',green,5)+path('M72 100h-24','none',green,4)+path('M248 100h24','none',green,4);
+      break;
+    case 'paraplu':
+      art = path('M58 110q0-80 102-80t102 80Z',blue,green,4)+path('M160 110v56q0 14-14 14t-14-14','none',green,5)+path('M160 110v-80','none',green,3);
+      break;
+    case 'rugzak':
+      art = rect(80,40,160,130,blue,10,green)+rect(96,56,128,80,blue,6,green)+path('M96 56h128','none',green,2)+path('M240 40q30 0 30 65t-30 65','none',blue,6)+path('M80 40q-30 0-30 65t30 65','none',blue,6)+rect(116,100,88,36,blue,4,green)+path('M160 100v36','none',green,2);
+      break;
+    case 'koffer':
+      art = rect(68,60,184,114,blue,10,green)+rect(108,42,104,24,blue,4,green)+rect(68,60,184,20,blue,4,green)+circle(86,174,12,grey,green,3)+circle(234,174,12,grey,green,3)+path('M152,58h16v8h-16Z',green,'none');
+      break;
+    // Health & town
+    case 'ziekenhuis':
+      art = rect(60,60,200,118,blue,4,green)+path('M144 32h32v28h28v32h-28v28h-32v-28H116V60h28Z',rust,'none')+path('M144 32h32v28h28v32h-28v28h-32v-28H116V60h28Z',rust,green,3)+rect(128,130,64,48,cream,0,green);
+      break;
+    case 'ambulance':
+      art = rect(52,80,216,88,cream,6,green)+rect(52,80,80,88,blue,0,green)+rect(68,96,50,48,cream,2)+path('M80 130h26m-10-14v26','none',rust,4)+circle(94,168,20,grey,green,4)+circle(94,168,8,green)+circle(220,168,20,grey,green,4)+circle(220,168,8,green)+rect(146,84,10,8,rust,2)+rect(158,80,10,8,rust,0)+rect(170,84,10,8,gold,2);
+      break;
+    case 'pijn':
+      art = path('M160 34l16 50h-40l14 40h-36l54 60-14-50h36l-14-44h40Z',rust,green,3);
+      break;
+    case 'kerk':
+      art = rect(74,100,172,80,blue,0,green)+path('M74 100l86-60 86 60Z',blue,green,3)+path('M152,46V22m8 0v24','none',green,0)+path('M144,30h32','none',green,0)+path('M160,14v32','none',green,4)+path('M148,28h24','none',green,4)+rect(138,130,44,50,cream,0,green);
+      break;
+    case 'brug':
+      art = path('M40 140q60-80 120-80t120 80','none',grey,8)+path('M40 140h240','none',green,4)+path('M76 140v-46m80 46v-50m88 46v-46','none',grey,5)+rect(32,136,256,8,green,0);
+      break;
+    case 'stoplicht':
+      art = rect(124,32,72,148,grey,8,green)+circle(160,66,22,rust)+circle(160,100,22,gold)+circle(160,134,22,lime)+circle(160,66,22,'none',green,2)+circle(160,100,22,'none',green,2)+circle(160,134,22,'none',green,2);
+      break;
+    case 'brievenbus':
+      art = rect(112,46,96,128,rust,6,green)+path('M112 96h96','none',green,3)+path('M130 72h60','none',cream,4)+path('M130 84h60','none',cream,0)+path('M148 88v8','none',cream,0)+path('M112 84q4-8 96 0','none',cream,3);
+      break;
+    case 'park':
+      art = rect(36,148,248,18,lime,0,green)+rect(148,126,24,40,gold,2)+circle(160,96,38,lime,green,4)+circle(140,118,18,lime)+circle(180,118,18,lime)+rect(60,108,50,58,blue,4,green)+path('M70 108h30v-10H70Z',gold,'none')+path('M70 108h30v-10H70Z','none',green,2)+path('M72 122h26m-26 14h26','none',green,2)+path('M40 148q80-18 240 0','none',green,3);
+      break;
+    // --- shopping ---
+    case 'winkel': art=rect(52,52,216,116,blue,8,green)+path('M52 52l108 52 108-52','none',green,3)+rect(116,110,88,58,cream,0,green)+rect(148,130,56,38,green,4)+path('M100 100h120m-60-20v78','none',green,4); break;
+    case 'supermarkt': art=rect(40,56,240,112,blue,6,green)+path('M40 56l120 56 120-56','none',green,3)+rect(56,116,64,52,cream,0)+rect(200,116,64,52,cream,0)+[80,120,160,200].map(x=>rect(x-12,70,24,32,lime,3,green)).join('')+path('M44 168h232','none',green,4); break;
+    case 'bakker': art=rect(60,90,200,78,gold,8,green)+path('M78 90V68q0-30 82-30t82 30v22','none',gold,6)+path('M82 90V72q0-22 78-22t78 22v18','none',cream,4)+path('M96 108h128m-128 18h110m-110 18h96','none',green,3)+head(270,68,16,true)+path('M258 84h28l-4 36-12 4','none',green,5); break;
+    case 'slager': art=rect(56,62,80,106,blue,4,green)+rect(56,62,80,28,green,4)+path('M104 56h-8v12l8 12','none',cream,3)+path('M184 130l-52-52 12-12 52 52Z',rust,green,3)+circle(196,118,12,rust,green,3)+path('M150 90l28 28','none',cream,4)+rect(172,40,76,56,cream,6,grey)+path('M186 58h48m-48 14h40m-40 14h44','none',green,2); break;
+    case 'markt': art=path('M42 148h236','none',grey,4)+[60,130,200].map(x=>rect(x,78,56,70,blue,0,green)+path(`M${x-6} 78l34-28 34 28`,'none',x===130?rust:gold,4)).join('')+[60,130,200].map(x=>path(`M${x+8} 96h40m-40 14h32m-32 14h36`,'none',cream,3)).join(''); break;
+    case 'kassa': art=rect(76,56,168,112,blue,6,green)+rect(88,68,144,44,cream,4)+path('M88 124h144','none',green,3)+[100,124,148,172,196].map(x=>rect(x,132,16,20,lime,2,green)).join('')+rect(76,160,168,8,green,0)+path('M220 56v-20h28v20','none',green,5); break;
+    case 'kassabon': art=rect(108,32,104,152,cream,4,grey)+path('M108 32h104v20H108Z',green,'none')+path('M120 66h80m-80 14h60m-60 14h72m-72 14h50m-50 14h68m-68 14h44m-44 14h58m-44 28h72','none',grey,2)+path('M148 150l24 0m-8-8 8 8-8 8','none',rust,3); break;
+    case 'korting': art=rect(56,62,208,104,lime,8,green)+path('M56 62l208 104M56 166l208-104','none',green,4)+circle(100,90,24,cream,green,4)+circle(220,138,24,cream,green,4)+`<text x="100" y="96" font-size="18" font-weight="700" fill="${green}" text-anchor="middle">%</text>`+`<text x="220" y="144" font-size="18" font-weight="700" fill="${green}" text-anchor="middle">€</text>`; break;
+    case 'euro': art=circle(160,100,62,gold,green,5)+`<text x="160" y="116" font-family="Georgia,serif" font-size="52" font-weight="700" fill="${green}" text-anchor="middle">€</text>`; break;
+    case 'pinpas': art=rect(60,62,200,116,blue,12,green)+path('M60 96h200','none',green,18)+rect(76,118,56,36,gold,4)+path('M152 124h80m-80 14h60','none',cream,3); break;
+    case 'boodschappen': art=path('M104 82V64q0-38 56-38t56 38v18','none',green,8)+path('M76 76h168l14 100H62Z',gold,green,3)+path('M118 92v20m84-20v20','none',green,6)+path('M100 130h36m12 0h52','none',cream,4); break;
+    case 'winkelmandje': art=path('M68 90h184l-18 80H86Z',gold,green,3)+path('M68 90l-14-34h-24','none',green,5)+path('M86 90V76q0-26 74-26t74 26v14','none',green,6)+path('M100 118h120m-116 18h112','none',cream,3)+circle(104,170,10,green)+circle(220,170,10,green); break;
+    // --- health ---
+    case 'gezondheid': art=head(160,72,26,true)+path('M160 98v56m0 0-28 34m0 0 28-14 28 14m-28-14v-20','none',lime,5)+path('M160 120l-30 18m30-18 30 18','none',lime,4)+path('M168 52v-20m-16 20v-14m32 14v-18','none',gold,4); break;
+    case 'ziekte': art=head(160,70,26,false)+path('M148 58q-6-18 0-28m24 28q6-18 0-28','none',rust,4)+path('M160 96v48m0 0-24 30m0 0 24-12 24 12m-24-12v-18','none',grey,5)+circle(160,96,6,rust); break;
+    case 'buikpijn': art=head(130,52,18,false)+path('M118 72v32m8 0v-26m14 0v28','none',grey,5)+ellipse(160,120,50,34,skin)+path('M124 112q12-10 24 0t24 0','none',rust,4)+path('M124 126q36 18 72 0','none',rust,3)+circle(160,120,4,rust); break;
+    case 'griep': art=head(160,62,28,false)+path('M144 48q-8-16 0-26m32 26q8-16 0-26','none',rust,4)+path('M130 88q-12 4-10 16t14 8','none',green,4)+path('M190 88q12 4 10 16t-14 8','none',green,4)+path('M144 82q8 22 32 0','none',green,6)+path('M160 90v28m-18 0h36','none',rust,9); break;
+    case 'wond': art=ellipse(160,100,68,48,skin)+path('M128 82q16-16 32 0t32 0','none',rust,5)+path('M114 106q18-4 30 6t30 0 30 6','none',rust,3)+rect(92,78,136,46,'none',0,grey)+path('M104 92h48m4 0h60','none',cream,6); break;
+    case 'pil': art=[0,1,2].map(i=>ellipse(100+i*60,100,18,26,i===0?lime:i===1?blue:gold)+ellipse(100+i*60,100,18,4,'#00000020')).join('')+path('M82 96h236','none',green,2); break;
+    case 'tablet': art=rect(90,42,140,116,'white',8,green)+rect(98,52,124,78,blue,4)+circle(160,146,7,lime,green,3)+path('M110 74h80m-80 16h56','none',green,3); break;
+    case 'verband': art=rect(86,56,148,88,cream,8,green)+rect(86,56,148,18,lime,8)+rect(86,126,148,18,lime,8)+path('M124 80h-10v34h10m28-34h10v34h-10m-18-26v12','none',green,4)+rect(132,78,28,38,cream,4,green); break;
+    case 'ziekenhuis': art=rect(60,52,200,116,cream,4,grey)+rect(60,52,200,28,'#d04050',4)+rect(96,38,128,18,cream,0,grey)+rect(72,94,48,38,blue,0)+rect(148,94,48,38,blue,0)+rect(124,80,32,88,cream,0)+rect(132,88,16,16,green,0)+path('M128 96h32m-16-16v32','none',cream,6); break;
+    case 'ambulance': art=rect(42,78,236,84,'white',6,green)+rect(42,78,100,84,blue,6,green)+rect(52,88,80,64,cream,4)+path('M92 106v28m-14-14h28','none',rust,7)+rect(168,100,90,32,cream,0)+[70,230].map(x=>circle(x,162,20,green)).join('')+[70,230].map(x=>circle(x,162,9,cream)).join('')+circle(160,68,8,rust); break;
+    case 'dokter': art=head(140,52,20,true)+path('M128 72v24m6-24v20m12-20v22','none',grey,5)+path('M110 110l30 12 30-12','none',green,5)+path('M110 134v-24q30-16 60 0v24','none',blue,4)+rect(190,80,68,50,cream,6,green)+path('M196 96h56m-56 14h40m-40 14h50','none',green,3); break;
+    case 'tandarts': art=rect(88,42,144,124,cream,10,green)+path('M88 42h144v28H88Z',blue,'none')+circle(128,78,16,cream,green,3)+path('M120 72q8 8 16 0','none',rust,3)+rect(122,84,12,18,cream,2,grey)+path('M152 64h48m-48 14h40m-48 36h56m-56 16h44m-44 18h52','none',green,3); break;
+    case 'apotheek': art=rect(60,52,200,116,lime,8,green)+path('M60 52h200v30H60Z',green,'none')+rect(78,96,48,72,cream,4,green)+rect(174,96,48,72,cream,4,green)+path('M84 126v24m-10-12h20m88-24v24m-10-12h20','none',green,5)+path('M148 80h24v14l24 8-24 8v14h-24v-14l-24-8 24-8Z',cream,green,3); break;
+    case 'moe': art=head(160,68,28,false)+path('M140 54h6m28 0h6','none',grey,3)+path('M145 80q15 6 30 0','none',grey,3)+path('M160 96v52','none',grey,5)+path('M160 120l-28 22m28-22 28 22','none',grey,4)+ellipse(160,172,28,8,skin); break;
+    case 'gezond': art=head(160,62,26,true)+path('M160 88v56','none',lime,6)+path('M160 108l-30 18m30-18 30 18','none',lime,5)+path('M160 144l-22 28m22-28 22 28','none',lime,5)+path('M168 46v-18m-16 18v-12m32 12v-16','none',gold,4); break;
+    // --- shopping misc ---
+    case 'goedkoop': art=circle(160,100,62,lime,green,5)+`<text x="160" y="116" font-family="Georgia,serif" font-size="32" font-weight="700" fill="${green}" text-anchor="middle">€ LOW</text>`+path('M210 62l16-12 6 14-18 6Z',gold,'none'); break;
+    case 'gratis': art=circle(160,100,62,gold,green,5)+`<text x="160" y="112" font-family="Georgia,serif" font-size="26" font-weight="700" fill="${green}" text-anchor="middle">GRATIS</text>`+path('M210 56l16-10 6 12-18 6Z',rust,'none'); break;
+    // --- transport extra ---
+    case 'tram': art=rect(56,70,208,90,blue,8,green)+rect(68,82,184,50,cream,4)+[88,128,168,208].map(x=>rect(x,84,28,44,blue,2)).join('')+path('M56 120h208','none',green,3)+[84,236].map(x=>circle(x,160,18,green)).join('')+[84,236].map(x=>circle(x,160,8,cream)).join('')+path('M80 68l-12-18m192 18 12-18','none',green,4); break;
+    case 'taxi': art=rect(56,80,208,80,'#f5c400',8,green)+rect(76,58,160,30,cream,6,green)+path('M76 58l-20 22m180-22 20 22','none',green,4)+[84,236].map(x=>circle(x,160,18,green)).join('')+[84,236].map(x=>circle(x,160,8,cream)).join('')+rect(130,40,60,22,'#222',6)+`<text x="160" y="56" font-size="13" font-weight="700" fill="#f5c400" text-anchor="middle">TAXI</text>`; break;
+    case 'motor': art=path('M84 140h152','none',grey,4)+circle(84,140,30,green)+circle(84,140,16,cream)+circle(236,140,30,green)+circle(236,140,16,cream)+path('M114 128l66-44h-36l-20 24','none',blue,5)+path('M160 84l-20 24 20 20','none',blue,4)+path('M160 104h40l-14-28','none',green,5); break;
+    case 'stuur': art=circle(160,100,62,cream,green,5)+circle(160,100,18,green)+path('M160 38v24m0 76v24m-62 0-17-17m152-110-17 17m17 110 17-17m-152-110 17 17','none',green,4)+path('M160 100h-24m24 0h24','none',green,8); break;
+    case 'wiel': art=circle(160,100,62,cream,green,5)+circle(160,100,12,green)+[0,45,90,135,180,225,270,315].map(a=>`<line x1="160" y1="100" x2="${Math.round(160+50*Math.cos(a*Math.PI/180))}" y2="${Math.round(100+50*Math.sin(a*Math.PI/180))}" stroke="${green}" stroke-width="4"/>`).join(''); break;
+    case 'helm': art=path('M160 48a68 68 0 0 1 68 68H92a68 68 0 0 1 68-68Z',blue,green,4)+path('M92 116q0 30 68 30t68-30','none',green,4)+rect(86,108,18,34,blue,4,green)+path('M110 108h100','none',cream,6); break;
+    case 'ongeluk': art=path('M88 100l-48-22 8-16 48 22Z',rust,'none')+path('M232 100l48-22-8-16-48 22Z',rust,'none')+path('M104 80l-20-42 14-6 20 42Z',blue,green,3)+path('M216 80l20-42-14-6-20 42Z',gold,green,3)+path('M160 150a48 48 0 0 1-56-48 48 48 0 0 1 56 48Z',rust,green,3); break;
+    case 'vertraging': art=clock(140,80,44)+path('M180 54l32-18 6 12-30 20Z',rust,'none')+path('M180 106l28 20-8 12-26-18Z',rust,'none')+path('M140 80v-30m0 30 22 14','none',green,5); break;
+    case 'rijbewijs': art=rect(58,52,204,116,blue,12,green)+rect(66,62,140,36,cream,4)+circle(82,80,14,skin,green,3)+path('M104 70h76m-76 14h60','none',green,2)+rect(226,72,26,20,lime,3,green)+path('M232 79l6 7 14-14','none',green,4)+path('M74 114h172m-172 16h150m-150 16h164','none',green,2); break;
+    // --- nature extra ---
+    case 'wind': art=[0,1,2,3].map(i=>path(`M${40+i*10} ${60+i*26}q60-${28+i*4} 120 0t120 0`,'none',blue,4-i)).join('')+path('M290 82l16 0-8-12Z',blue,'none')+path('M290 114l16 0-8-12Z',blue,'none'); break;
+    case 'storm': art=path('M42 78h238','none',grey,4)+[50,90,130,170,210,250].map(x=>path(`M${x} 78l-14 60`,'none',blue,3)).join('')+path('M100 38l-14 28 14 12h-28m96-40-14 28 14 12h-28','none',gold,5); break;
+    case 'regen': art=path('M82 52h156q28 0 28 28t-28 28H82q-28 0-28-28t28-28Z',blue,green,3)+[90,120,150,180,210].map(x=>path(`M${x} 108l-16 56`,'none',blue,4)).join(''); break;
+    case 'sneeuw': [0,60,120,180,240,300].map(a=>{const r=50,x2=Math.round(160+r*Math.cos(a*Math.PI/180)),y2=Math.round(100+r*Math.sin(a*Math.PI/180));return path(`M160 100L${x2} ${y2}`,'none',blue,4);}).forEach(p=>{art=(art||'')+p});
+      art+=circle(160,100,8,cream,green,4)+[0,60,120,180,240,300].map(a=>{const r=50,x=Math.round(160+r*Math.cos(a*Math.PI/180)),y=Math.round(100+r*Math.sin(a*Math.PI/180));return circle(x,y,5,blue);}).join('');
+      break;
+    case 'lente': art=path('M42 148h236','none',green,4)+path('M100 148V96q0-50 60-50t60 50v52','none',green,5)+[58,100,140,180,220,262].map(x=>path(`M${x} 148V${100+Math.abs(x-160)/2}`,'none',lime,3)).join('')+circle(100,68,24,gold)+path('M100 44V30m0 76V92m-24-24H62m76 0H124m-46-8-10-10m62 0 10-10m-62 62-10 10m62 0 10 10','none',gold,3); break;
+    case 'zomer': art=circle(160,75,40,gold)+path('M160 25v14m0 82v14m-50-50H96m128 0h-14m-89-35-10-10m128 0 10-10m-128 80-10 10m128 0 10 10','none',gold,4)+path('M42 148h236','none',green,4)+[60,100,140,180,220,260].map(x=>rect(x-6,120,12,28,lime,2)).join(''); break;
+    case 'herfst': art=path('M42 158h236','none',green,4)+path('M130 158V80q0-42 30-42t30 42v78','none','#8b5e3c',8)+circle(130,90,36,gold)+circle(175,75,28,rust)+circle(155,110,22,'#c47a2c')+path('M100 148h136','none','#8b5e3c',3); break;
+    case 'winter': art=path('M42 158h236','none',grey,3)+[50,110,170,230].map(x=>path(`M${x} 158v-${20+Math.abs(x-140)/4}q${x<160?-4:4}-4 0-8t${x<160?4:-4}-4v-16`,'none','#b8d4d8',6)).join('')+[0,1,2,3,4,5,6,7,8,9,10].map(i=>circle(40+i*24+Math.random()*8,40+Math.random()*30,3,cream)).join(''); break;
+    case 'grond': art=path('M42 148h236','none','#8b5e3c',8)+path('M42 158h236','none',green,4)+[55,90,130,170,210,250].map(x=>path(`M${x} 148v-${8+Math.abs(x-160)/12}`,'none','#8b5e3c',3)).join(''); break;
+    case 'zee': art=[0,1,2,3].map(i=>path(`M42 ${80+i*22}q30-${14+i*2} 60 0t60 0 60 0 60 0 56 0`,'none',blue,4)).join('')+circle(240,50,28,gold)+path('M240 22V36m0 56v14m-28-28h-14m70 0h14','none',gold,3); break;
+    case 'rivier': art=path('M42 80q80 16 160 0t76 0','none',blue,5)+path('M42 100q80 16 160 0t76 0','none',blue,5)+path('M42 120q80 16 160 0t76 0','none',blue,4)+path('M42 68h236v8M42 132h236v-8','none',green,3); break;
+    case 'berg': art=path('M42 148h236','none',grey,3)+path('M42 148l118-106 118 106Z',blue,green,4)+path('M160 42l-24 30h48Z',cream,green,2)+path('M100 120l-20 28m122-28 20 28','none',grey,3); break;
+    case 'boom': art=path('M42 158h236','none',green,4)+path('M148 158V84','none','#8b5e3c',14)+circle(160,68,52,lime,green,4)+circle(130,82,24,lime)+circle(190,82,24,lime); break;
+    case 'gras': art=path('M42 148h236','none',green,6)+[44,64,84,104,124,144,164,184,204,224,244,264].map((x,i)=>path(`M${x} 148v-${14+i%3*6}l${i%2?4:-4}-6`,'none',lime,3)).join(''); break;
+    // --- town extra ---
+    case 'kerk': art=rect(72,88,176,80,cream,4,grey)+path('M72 88l88-56 88 56Z',blue,green,4)+path('M152 36v-30m8 0h-16m8 0v-8','none',green,5)+rect(132,112,56,56,blue,0,green)+circle(160,140,22,'none',green,3); break;
+    case 'moskee': art=rect(68,90,184,78,blue,4,green)+path('M68 90q92-80 184 0','none',blue,0)+path('M68 90q92-64 184 0Z',cream,green,3)+path('M148 34v-20m24 20v-14','none',green,4)+circle(160,32,8,gold)+circle(172,28,5,gold); break;
+    case 'bibliotheek': art=rect(50,52,220,116,cream,4,grey)+path('M50 52h220v28H50Z',blue,'none')+[66,108,150,192,234].map(x=>rect(x,94,32,74,x%2?gold:lime,2,green)).join('')+rect(120,54,80,20,cream,2)+path('M130 62h60','none',blue,3); break;
+    case 'brug': art=path('M42 120h236','none',grey,4)+path('M42 120q60-62 118-62t118 62','none',blue,0)+path('M42 120q60-50 118-50t118 50Z',blue,green,3)+path('M78 120v-30m84 0v30m84-30v30','none',green,4)+path('M42 128h236','none',green,4); break;
+    case 'stoplicht': art=rect(124,28,72,144,green,8,grey)+circle(160,62,22,rust)+circle(160,100,22,gold)+circle(160,138,22,lime,green,3)+rect(148,172,24,12,grey,2); break;
+    case 'park': art=path('M42 148h236','none',green,4)+circle(90,90,38,lime,green,3)+circle(90,90,14,'#8b5e3c')+path('M90 128v20','none','#8b5e3c',8)+circle(210,100,28,lime,green,3)+circle(210,100,10,'#8b5e3c')+path('M210 128v20','none','#8b5e3c',6)+rect(130,130,60,18,gold,4,green)+rect(138,122,44,16,gold,4)+path('M42 148q80-10 236 0','none',green,3); break;
+    case 'brievenbus': art=rect(116,44,88,122,rust,8,green)+rect(116,44,88,36,green,8)+circle(160,68,14,cream,green,3)+rect(134,74,52,10,green,0)+path('M136 86h48','none',cream,4)+circle(160,148,18,cream,green,3)+path('M154 144v8m12-8v8','none',green,3); break;
+    case 'gemeentehuis': art=path('M42 88l118-54 118 54Z',blue,green,3)+rect(54,88,252,80,cream,0,green)+[80,116,152,188,224,260].map(x=>rect(x,100,22,36,blue,2,green)).join('')+rect(140,124,40,44,green,0)+path('M148 148h24','none',cream,4); break;
+    // --- food/meal extra ---
+    case 'worst': art=path('M72 90q0-34 88-34t88 34q0 34-88 34t-88-34Z',rust,green,4)+path('M72 90q0 8 88 8t88-8','none',green,3)+path('M64 84l-20-12-8 12 22 8Z','#c0392b',green,3)+path('M256 84l20-12 8 12-22 8Z','#c0392b',green,3); break;
+    case 'ham': art=path('M70 80q0-44 90-44t90 44q0 44-90 44t-90-44Z',rust,green,4)+path('M70 80q0 10 90 10t90-10','none',green,3)+path('M248 48l26-12 8 16-28 10Z','#c0392b',green,3)+circle(160,62,16,cream,green,3); break;
+    case 'soep': art=ellipse(160,148,88,22,grey)+path('M72 140h176v-22q0-56-88-56t-88 56Z',gold,green,3)+ellipse(160,118,70,18,blue)+path('M130 88q4-28 10-38m18 38q4-28 10-38','none',cream,4); break;
+    case 'taart': art=path('M88 100a72 72 0 0 1 144 0','none',gold,0)+path('M88 100a72 72 0 0 1 144 0l-72 48Z','#f4c2c2',green,3)+path('M88 100h144l-72 48Z','none',green,2)+path('M232 100a72 72 0 1 1-144 0Z',gold,green,3)+[120,160,200].map(x=>path(`M${x} 38v-22`,'none',rust,3)+circle(x,38,5,rust)).join(''); break;
+    case 'ijs': art=path('M140 98l-24 72h48Z',gold,green,4)+path('M140 98a20 20 0 0 0 40 0Z','#f5c6cb',green,3)+circle(160,78,20,'#f5c6cb',green,3)+path('M150 72q0-8 10-8t10 8','none',green,3); break;
+    case 'boterham': art=path('M60 78h200v72H60Z','#dfa75f',green,4)+path('M60 78h200v14H60Z','#f8dca0','none')+path('M60 136h200v14H60Z','#f8dca0','none')+path('M84 100h152m-152 14h138m-138 14h148','none',cream,3); break;
+    case 'broodje': art=path('M80 88h160q36 0 36 32t-36 32H80q-36 0-36-32t36-32Z','#dfa75f',green,4)+path('M80 88h160q24 0 30 16H50q6-16 30-16Z','#f8dca0','none')+path('M96 112h128m-128 14h112','none',cream,3); break;
+    // --- clothing extra ---
+    case 'trui': art=path('M100 48h120l32 46-22 12-22-28v100H112V78L90 106 68 94Z',blue,green,4)+path('M100 48q0 22 60 22t60-22','none',cream,3)+[122,148,174].map(y=>path(`M112 ${y}h96`,'none',cream,2)).join(''); break;
+    case 'jurk': art=path('M120 42h80l28 36-24 8-16-18v110H112V68L96 86 72 78Z',blue,green,4)+path('M120 42q0 14 40 14t40-14','none',cream,3)+path('M112 120q0 30 48 30t48-30','none',cream,3); break;
+    case 'rok': art=path('M110 52h100v22L240 166H80L130 74V52Z',blue,green,4)+path('M110 52h100v12H110Z',green,'none')+path('M100 166h120','none',green,4)+path('M130 100h60m-52 18h44','none',cream,3); break;
+    case 'hoed': art=ellipse(160,116,88,22,green)+path('M106 116V84q0-44 54-44t54 44v32','none',green,0)+path('M106 116V84q0-44 54-44t54 44v32Z',blue,green,4)+path('M72 116h176v8H72Z',green,'none'); break;
+    case 'muts': art=path('M88 110V88q0-50 72-50t72 50v22','none',blue,0)+path('M88 110V88q0-50 72-50t72 50v22Z',blue,green,4)+rect(80,108,160,22,blue,0,green)+circle(160,44,14,rust,green,4); break;
+    case 'sjaal': art=path('M130 48h60v12H130Z',rust,green,3)+path('M130 60l-18 110m78-110 18 110','none',rust,12)+path('M112 170h-10l-6 8-6-8-6 8m116-8h-10l-6 8-6-8-6 8','none',rust,4); break;
+    case 'bril': art=circle(110,100,34,'none',green,5)+circle(210,100,34,'none',green,5)+path('M144 100h32','none',green,5)+path('M76 100h-24l-10-8','none',green,5)+path('M244 100h24l10-8','none',green,5); break;
+    case 'zonnebril': art=rect(76,80,68,40,green,8)+rect(176,80,68,40,green,8)+path('M144 100h32','none',green,5)+path('M76 100h-24l-10-8','none',green,5)+path('M244 100h24l10-8','none',green,5)+path('M82 86h56m-56 14h56m-56 14h56m10-28h56m-56 14h56m-56 14h56','none',blue,2); break;
+    case 'paraplu': art=path('M72 100q0-88 88-88t88 88Z',blue,green,4)+path('M72 100h176','none',green,3)+[88,124,160,196,232].map(x=>path(`M${x} 100v-60`,'none',green,2)).join('')+path('M160 100v64q0 12-12 12t-12-12','none',green,5); break;
+    case 'rugzak': art=rect(82,42,156,126,blue,12,green)+rect(82,42,156,30,green,12)+rect(94,86,132,68,cream,6,green)+path('M82 68h156','none',green,3)+path('M238 80v-38q0-18-18-18','none',green,5)+path('M82 80v-38q0-18 18-18','none',green,5); break;
+    case 'koffer': art=rect(66,56,188,112,'#8090a0',10,green)+path('M66 56h188v24H66Z',green,'none')+rect(136,38,48,22,grey,6,green)+rect(60,104,12,24,grey,4,green)+rect(248,104,12,24,grey,4,green)+[80,160,240].map(x=>circle(x,168,10,grey)).join('')+[80,160,240].map(x=>circle(x,168,5,green)).join(''); break;
+    default: {
+      const letter = escape((key.replace(/^nl\.|^chunk\./,'').charAt(0)||'?').toUpperCase());
+      const lbl = `<text x="248" y="178" font-family="Georgia,serif" font-size="52" font-weight="700" fill="${green}" opacity="0.13" text-anchor="middle">${letter}</text>`;
+      // Word-specific text card takes priority; topic scene is only for thumbnails (no cueText)
+      if (cueText) {
+        const wtokens = cueText.split(' ');
+        const lines = []; let line = '';
+        for (const wt of wtokens) {
+          if ((line+' '+wt).trim().length > 26) { if (line) lines.push(line); line = wt; }
+          else line = (line ? line+' '+wt : wt);
+        }
+        if (line) lines.push(line);
+        const totalH = lines.length * 22;
+        const startY = Math.round(100 - totalH / 2 + 16);
+        const tspans = lines.map((l,i)=>`<tspan x="160" dy="${i===0?0:22}">${escape(l)}</tspan>`).join('');
+        art = rect(32,22,256,156,cream,12,green)+rect(44,34,232,132,'none',8,blue)+
+          `<text x="160" y="${startY}" font-family="Georgia,'Times New Roman',serif" font-size="17" fill="${green}" text-anchor="middle" font-style="italic" dominant-baseline="middle">${tspans}</text>`+
+          `<g transform="translate(255,42)"><path d="M-11 0q11-9 22 0q-11 9-22 0Z" fill="${cream}" stroke="${green}" stroke-width="2"/><circle cx="0" cy="0" r="4" fill="${blue}" stroke="${green}" stroke-width="2"/></g>`;
+        art += lbl;
+        break;
+      }
+      switch(topic) {
+        case 'pronouns':
+          art = path('M68 52h120q14 0 14 14v46q0 14-14 14h-44l-18 18 4-18h-62q-14 0-14-14V66q0-14 14-14Z',blue,green,3)+path('M83 75h90m-90 14h65','none',green,3)+head(252,95,22,true)+path('M230 118h45v26H230Z','none',green,2); break;
+        case 'connections':
+          art = rect(42,72,80,56,blue,8,green)+rect(198,72,80,56,blue,8,green)+path('M122 100h76m-18-14 18 14-18 14','none',green,5)+path('M122 100','none',rust,2); break;
+        case 'essential-verbs':
+          art = path('M160 45a75 75 0 1 1-.1 0Z','none',blue,3)+path('M160 45l-4-22 4-8 4 8Z',green,'none')+path('M95 80l-18-12-6 10 22 8Z',green,'none')+path('M225 80l18-12 6 10-22 8Z',green,'none')+circle(160,100,22,lime,green,3)+path('M148 93l12 14 20-20','none',green,5); break;
+        case 'daily-routines':
+          art = circle(160,95,55,cream,gold,4)+path('M160 50v20m0 50v10m-40-70 14 14m52 0 14-14m-74 40h-10m90 0h10','none',gold,3)+path('M160 95v-28m0 28 18 12','none',green,5)+circle(160,95,4,green); break;
+        case 'activities':
+          art = head(120,62,18,true)+path('M108 82h28l8 38-20 10','none',green,5)+path('M136 120l10-28','none',green,4)+path('M108 140l-14 30m40-30 14 30','none',green,4)+path('M200 80h80m-18-14 20 14-20 14','none',rust,5)+circle(240,56,12,lime,green,3); break;
+        case 'communication':
+          art = rect(58,52,164,94,blue,8,green)+path('M58 52l82 58 82-58','none',green,3)+phone(218,118)+path('M106 128h80m-80 14h55','none',green,3); break;
+        case 'family':
+          art = head(110,70,22,true)+head(210,70,22,true)+path('M80 140v-26q30-22 60 0v26m70 0v-26q30-22 60 0v26','none',green,5)+path('M150 100h20','none',rust,3)+circle(160,135,8,gold); break;
+        case 'personal':
+          art = rect(58,42,204,116,blue,10,green)+circle(100,88,24,skin,green,3)+path('M147 72h80m-80 16h65m-65 16h72m-65 16h50','none',green,3)+rect(72,72,10,10,lime,2); break;
+        case 'time':
+          art = rect(60,38,200,134,cream,8,grey)+path('M60 72h200','none',green,16)+[89,130,171,212].map(x=>rect(x-14,95,28,28,'none',3,grey)).join('')+rect(143,95,28,28,lime,3,green)+path('M85 52v30m150-30v30','none',green,5); break;
+        case 'numbers':
+          art = [0,1,2].map(i=>rect(52+i*82,58,68,84,i===0?lime:i===1?blue:gold,10,green)+`<text x="${86+i*82}" y="${112}" font-family="Georgia,serif" font-size="38" font-weight="700" fill="${green}" text-anchor="middle">${i+1}</text>`).join(''); break;
+        case 'home':
+          art = path('M52 98l108-62 108 62Z',gold,green,3)+rect(68,98,184,78,blue,0,green)+rect(140,120,42,56,green,0)+rect(84,118,36,28,cream,0)+rect(204,118,28,28,cream,0); break;
+        case 'household':
+          art = ellipse(130,158,22,8,'#708090')+path('M130 158V62','none','#708090',9)+ellipse(130,68,18,10,'#a0b0a0')+path('M220 48l-60 110m0 0 10-8m-10 8-10-6','none',green,4)+rect(200,42,28,18,gold,3)+path('M160 50h60m-40 15h40','none',grey,2); break;
+        case 'food':
+          art = ellipse(118,148,62,14,grey)+path('M56 140h124v-8q0-52-62-52t-62 52Z',cream,green,3)+ellipse(118,132,52,8,blue)+cup(174,72); break;
+        case 'meals':
+          art = path('M118 42v130','none','#c0a070',8)+path('M104 48h28q10 0 10 10v22h-48V58q0-10 10-10Z',gold,green,3)+path('M218 42v52q0 18-18 18v60','none','#c0a070',8)+path('M200 42v18h36V42','none','#c0a070',8)+head(160,100,18,true)+path('M148 114q12 12 24 0','none',rust,3); break;
+        case 'shopping':
+          art = path('M104 82V64q0-38 56-38t56 38v18','none',green,8)+path('M76 76h168l14 100H62Z',gold,green,3)+path('M118 92v20m84-20v20','none',green,6); break;
+        case 'clothing':
+          art = path('M120 32h80l46 40-28 14-22-20v110h-92V66l-22 20-28-14Z',blue,green,3)+path('M120 32l40 36 40-36m-40 36v108','none',green,3)+[120,148,175].map(y=>circle(170,y,3,gold)).join(''); break;
+        case 'body':
+          art = head(160,52,22,true)+path('M160 74v60m0 0-30 40m0 0 30-14 30 14m-30-14v-26','none',green,5)+path('M160 94l-34 20m34-20 34 20','none',green,4)+ellipse(160,172,26,8,skin); break;
+        case 'health':
+          art = rect(130,40,60,120,'#d04050',10,green)+rect(80,90,160,20,'#d04050',10,green)+rect(138,48,44,104,cream,6)+rect(88,98,144,4,cream,0)+circle(160,100,18,cream)+path('M152 93v14m-7-7h14','none','#d04050',4); break;
+        case 'transport':
+          art = path('M48 148h224','none',grey,6)+path('M160 148V52','none','#b0b8c0',3)+rect(80,96,160,52,blue,10,green)+rect(92,78,136,28,cream,5)+[100,220].map(x=>circle(x,148,16,green)).join('')+[100,220].map(x=>circle(x,148,7,cream)).join(''); break;
+        case 'town':
+          art = path('M42 158h236','none',grey,4)+rect(52,88,48,70,'#8090a8',0,green)+rect(116,68,52,90,'#6878a0',0,green)+rect(184,78,60,80,'#7888b0',0,green)+[68,142,214].map(x=>rect(x-8,102,16,20,cream,0)).join('')+circle(160,48,12,gold); break;
+        case 'work':
+          art = rect(86,68,148,106,blue,8,green)+path('M86 68h148v28H86Z',green,'none')+rect(122,42,76,32,'#8090a0',8,green)+rect(148,52,24,18,cream,3)+path('M112 110h96m-96 16h72m-72 16h82','none',cream,3); break;
+        case 'school':
+          art = rect(72,36,106,130,'#f0e8d0',4,grey)+rect(80,50,90,18,cream,2)+path('M80 82h90m-90 14h70m-70 14h80m-80 14h58m-58 14h74','none',grey,2)+`<g transform="rotate(-15 220 100)">${rect(206,42,18,110,green,4)}${path('M206 130h18l-9 22Z',gold,'none')}${rect(206,58,18,8,gold,0)}</g>`; break;
+        case 'government':
+          art = path('M52 110h216','none',green,5)+rect(84,112,152,62,blue,0,green)+[98,128,158,188,214].map(x=>rect(x,72,14,50,cream,0,green)).join('')+path('M72 110l88-64 88 64Z',gold,green,3)+circle(160,60,7,rust); break;
+        case 'digital':
+          art = rect(62,38,196,116,green,8,grey)+rect(72,48,176,96,cream,4)+rect(118,154,84,12,'#708090',4)+path('M76 56h168m0 16H76m0 16h140m0 16H76m0 16h110','none',blue,2)+circle(230,170,5,gold); break;
+        case 'leisure':
+          art = [0,1,2,3,4].map(i=>{const a=i*72-90,r=60,x=160+r*Math.cos(a*Math.PI/180),y=95+r*Math.sin(a*Math.PI/180);return `<polygon points="${x},${y-10} ${x+4},${y-3} ${x+12},${y-3} ${x+6},${y+3} ${x+8},${y+11} ${x},${y+6} ${x-8},${y+11} ${x-6},${y+3} ${x-12},${y-3} ${x-4},${y-3}" fill="${gold}" stroke="none"/>`;}).join('')+circle(160,95,22,lime,green,3); break;
+        case 'nature':
+          art = path('M42 148h236','none',green,4)+circle(90,80,34,gold)+path('M148 54h60q18 0 18 18t-18 18h-8q4 26-22 30t-30-26','none',blue,0)+path('M148 54h60q18 0 18 18t-18 18h-8q4 26-22 30t-30-26Z',blue,'none')+path('M115 148v-30q0-30 30-30 18 0 25 12','none',green,6)+path('M145 88q-20 0-28 20','none',green,4); break;
+        case 'descriptions':
+          art = [['#d04040',48],['#d08030',106],['#40a040',164],['#4060b0',222]].map(([c,x])=>rect(x,48,48,104,c,8,green)).join('')+path('M48 164h224','none',cream,2); break;
+        case 'feelings':
+          art = path('M160 148q-80-50-80-90a40 40 0 0 1 80 0 40 40 0 0 1 80 0q0 40-80 90Z','#c04060',green,3)+circle(138,90,6,cream)+circle(182,90,6,cream)+path('M145 110q15 16 30 0','none',cream,4); break;
+        case 'verbs':
+          art = path('M60 100q40-60 100-60t100 60','none',blue,4)+path('M240 80l20 20-24 8','none',blue,4)+path('M60 100q40 60 100 60t100-60','none',gold,4)+path('M240 120l20-20-24-8','none',gold,4)+circle(160,100,18,lime,green,3)+path('M152 95l16 10-16 10','none',green,5); break;
+        case 'answers':
+          art = path('M60 52h140q14 0 14 14v54q0 14-14 14H76l-30 26 6-26h8q-14 0-14-14V66q0-14 14-14Z',lime,green,3)+path('M232 80h30v50h-30Z',blue,green,2)+path('M76 78h100m-100 16h80m-80 16h58','none',green,3)+path('M235 92l8 10 14-16','none',green,4); break;
+        // legacy / imported topic IDs — map to nearest scene
+        case 'bakery': case 'bakker': case 'bij-de-bakker':
+          art = rect(60,90,200,78,gold,8,green)+path('M78 90V68q0-30 82-30t82 30v22','none',gold,6)+path('M82 90V72q0-22 78-22t78 22v18','none',cream,4)+path('M96 108h128m-128 18h110','none',green,3)+head(270,68,16,true); break;
+        case 'huisarts': case 'doctor': case 'bij-de-huisarts': case 'bij-de-dokter':
+          art = rect(130,40,60,120,'#d04050',10,green)+rect(80,90,160,20,'#d04050',10,green)+rect(138,48,44,104,cream,6)+rect(88,98,144,4,cream,0)+circle(160,100,18,cream)+path('M152 93v14m-7-7h14','none','#d04050',4); break;
+        case 'onderweg': case 'travel': case 'op-reis': case 'on-the-road':
+          art = path('M48 148h224','none',grey,6)+rect(80,96,160,52,blue,10,green)+rect(92,78,136,28,cream,5)+[100,220].map(x=>circle(x,148,16,green)).join('')+[100,220].map(x=>circle(x,148,7,cream)).join(''); break;
+        default:
+          art = rect(75,38,170,135,'white',13,grey)+circle(118,83,18,lime)+path('M88 152l53-48 34 29 28-36 30 55Z',blue,'none')+path('M252 53l5-12 6 12 12 5-12 5-6 12-5-12-12-5Z',gold,'none');
+      }
+      art += lbl;
+    }
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-label="${escape(label)}" stroke-linecap="round" stroke-linejoin="round">${rect(0,0,320,200,cream,16)}${ellipse(160,174,120,11,'#e8eddf')}${art}</svg>`;
 }
@@ -864,7 +1346,7 @@ const Writing = (() => {
       tokens:['trein','Om','uur','vertrekt','de','acht'],
       answer:'Om acht uur vertrekt de trein.', accepted:[],
       explanation:'“Om acht uur” is one time phrase. The finite verb “vertrekt” follows that whole phrase.',
-      translation:'The train departs at eight o’clock.'
+      translation:'The train departs at eight o\'clock.'
     },
     {
       id:'write.travel.question', topic:'transport', focus:'Question word + verb',
@@ -1086,7 +1568,7 @@ if(restoredState)try {
 }catch{}
 try{localStorage.setItem(STORE,JSON.stringify({release:'3.0',pack,progress,prefs}));}catch{persistent=false;}
 progress.sentenceRecords ||= {};
-const ui = {limit:24,importFormat:'auto',delimiter:'auto',view:'home',run:null,search:'',topic:'all',reviewSkill:'all',tab:'data',importText:'',pending:null,error:'',status:'',editCue:null};
+const ui = {limit:24,importFormat:'auto',delimiter:'auto',view:'home',run:null,search:'',topic:'all',reviewSkill:'all',tab:'data',importText:'',pending:null,error:'',status:'',editCue:null,fillIn:null};
 let voices = [], activeAudio = null, utterance = null, toastTimer;
 const recordings = new Map();
 const word = id => pack.words.find(w => w.id === id);
@@ -1121,15 +1603,15 @@ function knownCard(card) {
 function due() { return Engine.dueCards(progress).filter(knownCard); }
 function updateHeader() {
   $('due-count').textContent = due().length ? `· ${due().length}` : '';
-  for (const view of ['home','reviews','library']) $('nav-'+view).classList.toggle('active', ui.view === view || view === 'home' && ui.view === 'sentences');
+  for (const view of ['home','reviews','library']) $('nav-'+view).classList.toggle('active', ui.view === view || view === 'home' && (ui.view === 'sentences' || ui.view === 'fill-in'));
 }
 function navigate(view) { stopAudio(); ui.view = view; render(); }
 function render() {
   updateHeader();
-  $('app').innerHTML = ui.view === 'home' ? homeView() : ui.view === 'reviews' ? reviewView() : ui.view === 'library' ? libraryView() : ui.view === 'sentences' ? sentenceLibraryView() : lessonView();
+  $('app').innerHTML = ui.view === 'home' ? homeView() : ui.view === 'reviews' ? reviewView() : ui.view === 'library' ? libraryView() : ui.view === 'sentences' ? sentenceLibraryView() : ui.view === 'fill-in' ? fillInView() : lessonView();
 }
 function cueFor(w) { return progress.notes[w.id] || w.cue.description; }
-function cueView(w) { return `<div class="cue">${cueSvg(w.cue.key, 'Memory cue for '+w.meaning)}<p><strong>Memory hook</strong><br>${html(cueFor(w))}</p></div>`; }
+function cueView(w) { return `<div class="cue">${cueSvg(w.cue.key, 'Memory cue for '+w.meaning, w.topic, cueFor(w))}<p><strong>Memory hook</strong><br>${html(cueFor(w))}</p></div>`; }
 function memoryExtras(w) { return `${w.keyword?`<p class="small note"><strong>Keyword link:</strong> ${html(w.keyword)}</p>`:''}${w.warning?`<p class="small"><strong>Watch out:</strong> ${html(w.warning)}</p>`:''}${w.forms?`<p class="small muted" lang="nl">${html(w.forms)}</p>`:''}`; }
 function homeView() {
   const count = Object.keys(progress.seen).filter(id => word(id)).length;
@@ -1137,7 +1619,7 @@ function homeView() {
   return `${ui.run && !ui.run.complete ? `<div class="notice row between"><span>Your practice session is waiting.</span>${button('Continue →','resume','','quiet')}</div>` : ''}
   <section class="hero"><div><div class="eyebrow">v3.0 · ${pack.words.length} words & phrases · ${pack.topics.length} everyday topics</div>
   <h1>A little Dutch.<br>More independence.</h1><p>Recall a word. Understand a new message. Write your own. A small, balanced session for everyday Dutch.</p>
-  <div class="row">${button('Today’s practice →','daily')}${button('Sentence practice','sentences','','secondary')}</div>
+  <div class="row">${button('Today\'s practice →','daily')}${button('Sentence practice','sentences','','secondary')}${button('Fill-in-the-blank','fill-in-start','','secondary')}</div>
   <p class="small muted" style="margin-top:13px">Up to 6 due skills · ${backlog>=20?'1 new item while reviews build up':'3 new items'} · listening · writing</p></div>
   <div class="hero-art">${cueSvg('afspraak','A calendar with an appointment circled')}</div></section>
   <section class="stats" aria-label="Skills practised">${Object.entries(SKILLS).map(([skill,label]) => {
@@ -1147,10 +1629,356 @@ function homeView() {
   <div class="row between" style="margin-bottom:17px"><h2 style="font-size:29px;margin:0">Choose a little piece of life.</h2><span class="small muted">${count} discovered · ${backlog} skills due</span></div>
   <section class="grid">${pack.topics.map(t=>{
     const words=pack.words.filter(w=>w.topic===t.id),clips=pack.listening.filter(q=>q.topic===t.id).length;
-    return words.length?`<article class="topic"><div class="thumb">${cueSvg(words[0].cue.key,words[0].meaning)}</div><div class="eyebrow">${html(t.english)}</div><h3 lang="nl">${html(t.title)}</h3><p>${html(t.description)}</p><div class="small muted">${words.length} words & phrases · ${clips} listening items</div>${button('Practise here →','start',`data-topic="${html(t.id)}"`)}</article>`:'';
+    return words.length?`<article class="topic"><div class="thumb">${cueSvg('__topic__',t.english,t.id)}</div><div class="eyebrow">${html(t.english)}</div><h3 lang="nl">${html(t.title)}</h3><p>${html(t.description)}</p><div class="small muted">${words.length} words & phrases · ${clips} listening items</div>${button('Practise here →','start',`data-topic="${html(t.id)}"`)}</article>`:'';
   }).join('')}</section>
   <div class="note">Use cues to learn, then recall without them. Audio is synthetic. Sentence drills explain corrections; free writing is self-assessed. ${persistent?'Progress stays in this browser.':'Storage is unavailable; export a backup before leaving.'}</div>`;
 }
+
+/* ── Fill-in-the-blank exercise ─────────────────────────────────── */
+// Extra A2-level sentences per lemma: 2-3 simple, everyday alternatives.
+// Each string must contain the lemma (or article+lemma) exactly once so blankSentence can blank it.
+const FILL_EXTRA = {
+  // ── Transport ────────────────────────────────────────────────────
+  'fiets':       ['Mijn auto is kapot, dus ik pak de fiets en rijd naar het centrum.',
+                  'Het regent hard, maar ik neem toch de fiets want de bus is altijd vol.',
+                  'Kun jij even op mijn fiets letten? Ik ben zo terug uit de winkel.'],
+  'auto':        ['De trein heeft vertraging, maar met de auto zijn we er in twintig minuten.',
+                  'Hij wil een auto kopen, maar een auto in de stad is duur en je hebt nergens een parkeerplaats.'],
+  'bus':         ['Mijn auto staat in de garage, dus neem ik vandaag de bus naar mijn werk.',
+                  'De bus naar het centrum rijdt elk kwartier, dus je hoeft niet lang te wachten.',
+                  'Ik mis de bus altijd omdat ik te laat van huis ga.'],
+  'trein':       ['Amsterdam is ver, maar met de trein ben je er in een halfuur.',
+                  'De trein had tien minuten vertraging, dus ik kom te laat op mijn werk.',
+                  'Is er nog een trein naar Utrecht vanavond, of moet ik een hotel zoeken?'],
+  'tram':        ['De tram stopt vlak voor het station, dus het is makkelijk om over te stappen.',
+                  'Ik neem altijd de tram naar school want fietsen in de regen is niet prettig.'],
+  // ── Home ─────────────────────────────────────────────────────────
+  'sleutel':     ['Ik stond een halfuur voor de deur want ik kon mijn sleutel niet vinden.',
+                  'Leg de sleutel altijd op dezelfde plek, dan ben je hem nooit kwijt.',
+                  'De buurvrouw heeft een reservesleutel, dus bel haar maar als je jezelf buitensluit.'],
+  'raam':        ['Het is dertig graden buiten, maar als je het raam opendoet komt er een fijne wind.',
+                  'De buren maken veel lawaai, dus ik doe het raam dicht als ik wil slapen.'],
+  'deur':        ['Doe de deur even dicht, want het is koud buiten en de verwarming staat aan.',
+                  'Ik hoorde iemand aan de deur kloppen, maar toen ik opendeed was er niemand.',
+                  'De voordeur zit soms klem, dus je moet er even hard aan trekken.'],
+  'tafel':       ['We eten elke avond samen aan de tafel, ook als de kinderen al gegeten hebben.',
+                  'De tafel is te klein voor zes mensen, dus we moeten er een andere bij zetten.',
+                  'Leg de post op de tafel bij de deur, dan vergeet ik hem niet te lezen.'],
+  'stoel':       ['Er zijn maar vier stoelen, maar we zijn met zes mensen, dus iemand moet staan.',
+                  'Ga op die stoel bij het raam zitten, dan kun je de tuin zien.'],
+  'bed':         ['Ik ben zo moe dat ik meteen naar bed ga als ik thuiskom van mijn werk.',
+                  'De kinderen mogen pas naar bed als ze hun tanden gepoetst hebben.',
+                  'Heb je goed geslapen? Mijn bed is zo hard dat ik de hele nacht wakker lag.'],
+  'keuken':      ['De keuken ruikt heerlijk omdat ze al een uur soep staat te koken.',
+                  'Onze keuken is klein, maar we koken er elke dag want we gaan nooit naar een restaurant.',
+                  'Ik vind koken leuk, maar mijn keuken is zo rommelig dat ik niets kan vinden.'],
+  'badkamer':    ['De badkamer is bezet, want mijn dochter staat al twintig minuten onder de douche.',
+                  'Als je de badkamer deelt met anderen moet je afspraken maken over de ochtend.'],
+  'lamp':        ['De lamp in de woonkamer is kapot, dus ik doe de lamp in de gang aan.',
+                  'Het is al donker buiten, maar ik vergeet altijd de lamp aan te doen.'],
+  'telefoon':    ['Mijn telefoon is leeg en ik heb mijn oplader niet bij me, dus ik kan niemand bellen.',
+                  'De dokter belde op mijn telefoon, maar ik hoorde hem niet want de muziek stond hard.',
+                  'Heb jij het telefoonnummer van de apotheek? Ik zoek het maar kan het niet vinden.'],
+  'computer':    ['Hij werkt de hele dag thuis achter de computer en gaat bijna nooit naar buiten.',
+                  'Mijn computer doet het niet meer, dus ik moet mijn werk op de telefoon doen.'],
+  // ── Food & drink ─────────────────────────────────────────────────
+  'brood':       ['Ik eet elke ochtend brood met kaas, want dat gaat snel en ik heb geen tijd om te koken.',
+                  'Er is geen brood meer in huis, dus ik ga even naar de bakker op de hoek.',
+                  'Nederlands brood is anders dan thuis, maar ik ben er inmiddels aan gewend.'],
+  'melk':        ['Er is geen melk meer in de koelkast en ik wil graag thee, dus ik ga even naar de winkel.',
+                  'Mijn dochter drinkt elke ochtend een groot glas melk bij het ontbijt.',
+                  'De melk is al over datum, gooi hem weg en koop morgen een nieuwe.'],
+  'kaas':        ['Nederlanders eten veel kaas, want kaas zit in bijna elke boterham hier.',
+                  'Ik koop altijd kaas op de markt want die is daar verser en goedkoper dan in de supermarkt.',
+                  'Wil je kaas op je brood, of heb je liever iets anders?'],
+  'appel':       ['Mijn kind wil alleen maar koekjes, maar ik geef hem een appel want dat is gezonder.',
+                  'Ik neem altijd een appel mee naar mijn werk als tussendoortje tussen de vergaderingen.',
+                  'De appels op de markt zijn goedkoper dan in de supermarkt en veel lekkerder.'],
+  'water':       ['Het is warm buiten, dus drink genoeg water anders krijg je hoofdpijn.',
+                  'Mag ik een glas water? Ik heb de hele dag niets gedronken en ik ben erg dorstig.',
+                  'De dokter zegt dat ik elke dag twee liter water moet drinken voor mijn gezondheid.'],
+  'koffie':      ['Ik kan niet werken zonder koffie, dus ik zet altijd eerst een kopje voordat ik begin.',
+                  'Wil je koffie of thee? De koffie is net vers gezet, hij is nog warm.',
+                  'Ik neem mijn koffie altijd zwart, want met melk vind ik hem te zwaar.'],
+  'thee':        ['Als ik ziek ben drink ik liever thee dan koffie, want thee is rustiger voor mijn maag.',
+                  'Zal ik thee voor ons zetten? Ik heb verse thee van de markt gekocht.'],
+  'soep':        ['Het is koud buiten en ik voel me niet goed, dus ik maak een grote pan soep.',
+                  'Ze maakt elke zondag soep van de groente die over is van de week.',
+                  'De soep staat al een uur op het vuur, maar hij is nog niet warm genoeg.'],
+  'vlees':       ['Hij eet geen vlees meer omdat hij het niet goed vindt voor het milieu.',
+                  'Ik koop altijd vlees bij de slager op de markt, want dat is beter dan in de supermarkt.',
+                  'Wat voor vlees wil je vanavond? Ik kan kip of gehakt maken, wat jij lekker vindt.'],
+  'vis':         ['We eten elke vrijdag vis want mijn vrouw is katholiek en eet dan geen vlees.',
+                  'Verse haring is een typisch Nederlands gerecht dat je op straat kunt kopen.'],
+  'groente':     ['De dokter zegt dat ik meer groente moet eten en minder brood als ik wil afvallen.',
+                  'Mijn kinderen eten geen groente, maar ik doe het stiekem door de soep.'],
+  'rijst':       ['Ik eet bijna elke dag rijst met kip en groente, want dat is snel en goedkoop.',
+                  'Hoe lang moet de rijst koken? Ik doe het altijd te lang en dan plakt het aan elkaar.'],
+  'suiker':      ['Ik doe geen suiker in mijn koffie meer want de dokter zei dat ik minder zoet moet eten.',
+                  'Er zit veel suiker in dat drankje, meer dan je denkt, dus drink het niet te veel.'],
+  // ── Shopping / money ─────────────────────────────────────────────
+  'winkel':      ['De grote supermarkt is dicht op zondag, maar de kleine winkel op de hoek is altijd open.',
+                  'Ik ga na mijn werk even naar de winkel want we hebben geen brood meer thuis.',
+                  'Is er ergens een winkel in de buurt waar ik een simkaart kan kopen?'],
+  'markt':       ['Op zaterdagochtend gaan wij altijd naar de markt voor verse groente en fruit.',
+                  'De markt is goedkoper dan de supermarkt, maar je moet vroeg gaan want anders is alles weg.',
+                  'Ik koop mijn kaas en vis altijd op de markt, want die kwaliteit is veel beter.'],
+  'geld':        ['Ik heb mijn portemonnee thuis laten liggen, dus ik heb geen geld bij me.',
+                  'De huur is weer gestegen, dus ik moet meer geld verdienen of een kleinere kamer zoeken.',
+                  'Hoeveel geld kost een maandkaart voor de bus? Ik wil weten of het goedkoper is dan de fiets.'],
+  'prijs':       ['De prijs van de boodschappen is dit jaar veel hoger dan vorig jaar, dus ik let beter op.',
+                  'De prijs van dat shirt is te hoog voor mij, maar misschien is er korting volgende week.',
+                  'Kun je de prijs voor mij opzoeken? Ik weet niet of ik genoeg geld bij me heb.'],
+  'rekening':    ['Mag ik de rekening? We moeten gaan want we hebben straks een andere afspraak.',
+                  'De rekening van dit restaurant is altijd hoger dan ik denk, maar het eten is goed.'],
+  'boodschappen':['Ik doe elke zaterdag boodschappen voor de hele week, dan hoef ik niet elke dag naar de winkel.',
+                  'Kun jij de boodschappen doen? Ik schrijf een lijstje want anders vergeet je altijd iets.'],
+  // ── Health ───────────────────────────────────────────────────────
+  'dokter':      ['Ik voel me al drie dagen niet goed, dus ik ga morgen toch maar naar de dokter.',
+                  'De dokter zegt dat ik meer moet bewegen en minder stress moet hebben, maar hoe doe je dat?',
+                  'Bel de dokter als de pijn erger wordt, want het kan iets ernstigs zijn.'],
+  'ziekenhuis':  ['Hij is gisteravond naar het ziekenhuis gebracht omdat hij gevallen was van zijn fiets.',
+                  'Het ziekenhuis hier is ver, maar met de tram ben je er in twintig minuten.'],
+  'apotheek':    ['Ik haal het recept op bij de apotheek, maar die is vandaag maar een uur open.',
+                  'Is de apotheek op zondag open? Ik moet dringend een medicijn halen voor mijn kind.'],
+  'hoofdpijn':   ['Ik heb al de hele dag hoofdpijn, waarschijnlijk omdat ik te weinig water heb gedronken.',
+                  'Heb je iets tegen hoofdpijn? Ik heb mijn medicijnen thuis laten liggen.'],
+  'medicijn':    ['De dokter heeft een medicijn voorgeschreven, maar ik moet het drie keer per dag nemen.',
+                  'Vergeet je medicijn niet, want als je stopt heeft het geen effect meer.'],
+  'pijn':        ['Ik heb pijn in mijn rug omdat ik gisteren te lang achter de computer heb gezeten.',
+                  'De pijn begon gisteren en is nu erger, dus ik ga toch maar naar de dokter.',
+                  'Heb je ergens pijn, of is het gewoon moe van de lange dag?'],
+  'ziek':        ['Ik ben ziek en blijf thuis, want ik wil mijn collega\'s niet aansteken.',
+                  'Als je je ziek voelt moet je meteen de dokter bellen en niet wachten.',
+                  'Hij is al een week ziek en kan niet naar school, maar hij verveel zich thuis.'],
+  'gezond':      ['De dokter zegt dat ik gezond ben, maar ik moet wel meer bewegen en beter slapen.',
+                  'Ze eet gezond en sport drie keer per week, maar toch voelt ze zich altijd moe.',
+                  'Is dat gezond om elke dag koffie te drinken, of is het beter om meer water te nemen?'],
+  // ── People ───────────────────────────────────────────────────────
+  'kind':        ['Mijn kind gaat nu naar de basisschool en leert al snel een beetje Nederlands.',
+                  'Ze heeft drie kinderen, maar toch werkt ze fulltime en doet alles zelf.',
+                  'Als je een kind hebt in Nederland moet je het inschrijven bij de gemeente.'],
+  'man':         ['De man aan de kassa vroeg me of ik een bonnetje wilde, maar ik zei nee.',
+                  'Er staat een man voor de deur die zegt dat hij een pakketje heeft voor mij.'],
+  'vrouw':       ['De vrouw naast mij in de bus sprak heel snel Nederlands, maar ik begreep haar wel.',
+                  'Er is een vrouw aan de telefoon die vraagt naar de huurprijs van onze kamer.'],
+  'vriend':      ['Mijn vriend woont in Rotterdam, dus ik neem de trein als ik hem wil zien.',
+                  'Ik ga dit weekend mijn vriend opzoeken want ik heb hem al weken niet gezien.'],
+  'vriendin':    ['Mijn vriendin heeft me geholpen met mijn inburgeringsexamen en ik ben haar erg dankbaar.',
+                  'Ik bel mijn vriendin elke zondag, want zij woont nog in het buitenland.'],
+  'buurman':     ['Mijn buurman klopt altijd aan als hij een pakketje voor mij heeft aangenomen.',
+                  'Ik leen de ladder van mijn buurman want ik moet een lamp boven de trap vervangen.'],
+  'buurvrouw':   ['Mijn buurvrouw past op onze kat als we op vakantie zijn, want ze is altijd thuis.',
+                  'Ik heb de sleutel bij mijn buurvrouw gelaten zodat de loodgieter naar binnen kan.'],
+  'collega':     ['Mijn collega spreekt ook Nederlands als tweede taal, dus wij oefenen samen.',
+                  'Ik ga na het werk een borrel drinken met een collega die vandaag zijn laatste dag heeft.'],
+  // ── Location ─────────────────────────────────────────────────────
+  'straat':      ['Ik woon in een rustige straat vlak bij het centrum, dus ik kan overal lopen.',
+                  'Welke straat is dit? Ik ben verdwaald en mijn telefoon heeft geen bereik.',
+                  'De winkel die ik zoek is in de volgende straat, links na het stoplicht.'],
+  'weg':         ['We zijn de weg kwijt want de navigatie werkt niet meer en er zijn geen borden.',
+                  'Is dit de goede weg naar het station, of moet ik rechtsaf bij de brug?'],
+  'brug':        ['We moeten over de brug want aan de andere kant van het water is de supermarkt.',
+                  'De brug is gesloten voor reparatie, dus we moeten een omweg nemen.'],
+  'plein':       ['Er is elke zaterdag een markt op het plein voor het stadhuis.',
+                  'Laten we afspreken op het plein bij de fontein, dan is het makkelijk te vinden.'],
+  'park':        ['Na mijn werk wandel ik altijd even door het park voordat ik naar huis ga.',
+                  'De kinderen spelen elke middag in het park als het niet regent.',
+                  'Het park is vlakbij ons huis, dus we hoeven niet ver te lopen voor frisse lucht.'],
+  'centrum':     ['Het centrum is tien minuten lopen, maar als je haast hebt neem je de tram.',
+                  'Ik ga zaterdag winkelen in het centrum want er zijn veel winkels bij elkaar.',
+                  'Waar is het centrum precies? Ik ben nieuw in de stad en ken de weg nog niet.'],
+  'links':       ['Sla links af bij het stoplicht, dan zie je de apotheek aan je rechterhand.',
+                  'Het postkantoor is links van de bank, naast de fietsenwinkel.'],
+  'rechts':      ['Ga bij de brug rechts en dan zie je de school aan het einde van de straat.',
+                  'De supermarkt is rechts als je uit het station komt, je kunt het niet missen.'],
+  'rechtdoor':   ['Ga rechtdoor tot het einde van de straat, dan zie je het plein voor je.',
+                  'Rij rechtdoor over de brug, en dan is het ziekenhuis aan je linkerhand.'],
+  // ── Time & routine ───────────────────────────────────────────────
+  'ochtend':     ['Elke ochtend fiets ik naar de bakker voor vers brood, want dat is mijn gewoonte.',
+                  'In de ochtend heb ik weinig energie, maar na een kopje koffie gaat het beter.',
+                  'Hoe was je ochtend? Ik hoorde dat er problemen waren met de trein.'],
+  'middag':      ['We lunchen elke middag samen in de kantine, want alleen eten is saai.',
+                  'Ik heb een afspraak bij de gemeente in de middag, dus ik kom wat later terug.'],
+  'avond':       ['Elke avond lees ik een halfuur Nederlands voor het slapengaan, en het helpt echt.',
+                  'Wat doe jij vanavond? Ik ga naar een Nederlandse film in de bioscoop.',
+                  'De avond is de enige tijd dat ik kan oefenen, want overdag werk ik de hele tijd.'],
+  'nacht':       ['Ik heb slecht geslapen vannacht want de buren hadden een feest tot drie uur.',
+                  'De nacht was koud en ik had geen extra deken, dus ik ben verkouden geworden.'],
+  'week':        ['Volgende week heb ik mijn inburgeringsexamen, dus ik oefen elke dag heel hard.',
+                  'Ik werk vijf dagen per week, maar in het weekend heb ik gelukkig tijd voor mezelf.',
+                  'Hoe was je week? Je ziet er moe uit, heb je veel gedaan?'],
+  'maand':       ['Ik betaal elke maand huur op de eerste, want anders krijg ik een boete.',
+                  'Over een maand is mijn cursus afgelopen en dan doe ik examen, spannend!'],
+  'jaar':        ['Ik woon hier nu twee jaar en mijn Nederlands is veel beter dan in het begin.',
+                  'Volgend jaar wil ik mijn rijbewijs halen, maar de lessen zijn erg duur.',
+                  'Het duurt een jaar voordat je inburgeringscursus klaar is als je elke dag gaat.'],
+  'vandaag':     ['Vandaag heb ik geen les, dus ik ga oefenen met de game en daarna naar de markt.',
+                  'Wat doe je vandaag? Ik ga naar de bibliotheek om te studeren voor mijn examen.',
+                  'Het is vandaag heel mooi weer, laten we naar het park gaan in de middag.'],
+  'morgen':      ['Morgen heb ik een afspraak bij de gemeente, dus ik leg mijn paspoort alvast klaar.',
+                  'Ik bel je morgen terug want nu heb ik geen tijd, maar ik vergeet het echt niet.',
+                  'Morgen is het zaterdag, dus de winkel is eerder dicht dan door de week.'],
+  'gisteren':    ['Gisteren was ik ziek en kon niet naar de les, maar ik heb de oefeningen thuis gemaakt.',
+                  'Heb jij gisteren het nieuws gezien over de storm? Het was erg hier in de stad.',
+                  'Gisteren regende het de hele dag, maar vandaag is het gelukkig droog en zonnig.'],
+  // ── Work & study ─────────────────────────────────────────────────
+  'werk':        ['Ik ben blij met mijn werk want mijn collega\'s zijn aardig en de sfeer is goed.',
+                  'Hij zoekt al drie maanden een nieuw werk want bij zijn oude bedrijf was het niet prettig.',
+                  'Hoe is het op je werk? Heb je al meer Nederlands geleerd van je collega\'s?'],
+  'school':      ['Mijn kinderen gaan naar de school om de hoek en ze leren al snel Nederlands.',
+                  'Op school leer ik elke dag nieuwe woorden, maar thuis oefen ik ze dan nog eens.',
+                  'Hoe laat begint de school? Ik wil mijn dochter brengen maar ik weet de tijd niet.'],
+  'cursus':      ['Ik volg een cursus Nederlands omdat ik mijn inburgeringsexamen wil halen dit jaar.',
+                  'De cursus duurt zes maanden en kost veel geld, maar het is een goede investering.',
+                  'Is de cursus moeilijk? Mijn buurvrouw zei dat de leraar veel van je verwacht.'],
+  'les':         ['De les begint om negen uur, dus ik moet om acht uur op de fiets staan.',
+                  'Ik heb morgen geen les want de leraar is ziek, dus ik oefen thuis op mijn eigen tempo.',
+                  'Hoe lang duurt de les? Ik moet namelijk om twaalf uur ergens anders zijn.'],
+  'huiswerk':    ['Ik maak elke avond mijn huiswerk na het eten, want anders slaap ik er slecht van.',
+                  'Heb je je huiswerk al gedaan? De leraar vraagt er altijd naar aan het begin.'],
+  'brief':       ['Ik heb een brief van de gemeente gekregen, maar ik begrijp niet wat er staat.',
+                  'Schrijf een brief aan je baas als je ziek bent en niet kunt komen.',
+                  'De brief is in het Nederlands en vol moeilijke woorden, dus ik vraag mijn buurvrouw om hulp.'],
+  // ── Weather & nature ─────────────────────────────────────────────
+  'weer':        ['Het weer in Nederland is onvoorspelbaar, want \'s ochtends schijnt de zon maar \'s middags regent het.',
+                  'Hoe is het weer buiten? Ik moet weten of ik een jas nodig heb of niet.',
+                  'Het weer is vandaag zo mooi dat ik mijn fiets pak in plaats van de bus.'],
+  'regen':       ['Er is regen voorspeld voor dit weekend, maar ik ga toch naar de markt met een paraplu.',
+                  'Ik hou niet van de regen, maar in Nederland moet je er aan wennen want het regent veel.'],
+  'zon':         ['De zon schijnt vandaag voor het eerst in twee weken, en iedereen is buiten.',
+                  'Heerlijk, de zon is er eindelijk! Na al die regen is dit echt een mooie verandering.'],
+  'wind':        ['Er staat vandaag zoveel wind dat fietsen erg moeilijk is, zeker tegen de wind in.',
+                  'De wind is koud en waait hard, dus trek een dikke jas aan voordat je naar buiten gaat.'],
+  'boom':        ['Er staat een grote boom voor ons huis die in de herfst zijn bladeren verliest.',
+                  'De storm heeft een boom omgeblazen in het park, maar gelukkig is er niemand gewond.'],
+  'bloem':       ['Ik koop altijd bloem voor mijn moeder als ik op bezoek kom, dat vindt ze fijn.',
+                  'Er staan mooie bloemen in de tuin die ik elke week moet water geven.'],
+  'tuin':        ['Ik werk elke zaterdag in de tuin als het droog is, want het geeft me rust.',
+                  'Ze heeft een mooie tuin met veel bloemen, maar ze besteedt er veel tijd aan.'],
+  // ── Official & admin ─────────────────────────────────────────────
+  'nummer':      ['Wat is jouw telefoonnummer? Ik wil je bellen als ik vragen heb over de les.',
+                  'Ik zoek het nummer van de dokter, maar ik kan het niet vinden op de website.',
+                  'Schrijf je kamer nummer op het formulier, anders weet de post niet waar je bent.'],
+  'adres':       ['Wat is je adres? Ik wil je een brief sturen maar ik heb je gegevens niet.',
+                  'Schrijf je adres duidelijk op het formulier, want anders komt de post niet aan.',
+                  'Ik heb het adres van de school nodig want ik moet er morgen voor het eerst naartoe.'],
+  'afspraak':    ['Ik heb een afspraak bij de gemeente voor mijn verblijfsvergunning, maar ik ben bang dat ik het niet begrijp.',
+                  'Vergeet je afspraak bij de dokter niet, want als je te laat afbelt moet je een boete betalen.',
+                  'Kun je een afspraak voor mij maken? Mijn Nederlands is niet goed genoeg om zelf te bellen.'],
+  'formulier':   ['Ik begrijp het formulier niet helemaal, maar mijn buurvrouw helpt me met de moeilijke woorden.',
+                  'Vul het formulier in met een blauwe pen en vergeet je handtekening niet onderaan.'],
+  'gemeente':    ['Ik moet naar de gemeente om me in te schrijven, want zonder inschrijving kan ik niets regelen.',
+                  'De gemeente heeft me een brief gestuurd dat ik mijn adres moet doorgeven.'],
+  'paspoort':    ['Mijn paspoort is verlopen en ik moet snel een nieuw aanvragen want ik ga binnenkort op reis.',
+                  'Heb je je paspoort bij je? Je hebt het nodig bij de gemeente om je in te schrijven.',
+                  'Ik moet mijn paspoort verlengen bij de ambassade, maar ik weet niet hoe dat werkt.'],
+  'verzekering': ['Heb je al een zorgverzekering? In Nederland is dat verplicht, ook als je hier pas bent.',
+                  'Mijn verzekering dekt de tandarts niet, dus ik moet zelf betalen en dat is duur.'],
+  'huur':        ['De huur is gestegen met twintig procent, dus ik zoek een goedkopere kamer.',
+                  'Ik betaal elke maand huur op de eerste van de maand, anders krijg ik problemen.',
+                  'Hoeveel is de huur voor die kamer? Ik hoop dat het niet meer is dan vijfhonderd euro.'],
+  'kamer':       ['Ik huur een kamer in Amsterdam, maar het is klein en ik moet de badkamer delen.',
+                  'Mijn kamer is klein maar gezellig, en de huur is redelijk voor deze buurt.'],
+  'huis':        ['We zoeken een groter huis want we krijgen een baby en er is geen ruimte meer.',
+                  'Ik woon in een klein huis vlak bij het centrum, dus ik heb geen auto nodig.',
+                  'Hij is thuis vandaag want hij werkt vanuit huis en heeft geen afspraken.'],
+  'flat':        ['Ze woont in een flat op de derde verdieping, maar de lift is al drie weken kapot.',
+                  'De flat heeft een gedeelde tuin die iedereen mag gebruiken, maar niemand doet het.'],
+};
+
+// Rolling window of recently used word IDs (session-only, max 50)
+let _recentFillIds = [];
+
+function blankSentence(w, sentencePool) {
+  // Pick one sentence from the pool randomly
+  const ex = sentencePool[Math.floor(Math.random() * sentencePool.length)];
+  const lemma = w.lemma;
+  const noun_ = w.article ? w.article + ' ' + lemma : lemma;
+  for (const target of [noun_, lemma]) {
+    const esc = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const re = new RegExp('(?<![\\w\\u00C0-\\u017E])' + esc + '(?![\\w\\u00C0-\\u017E])', 'i');
+    if (re.test(ex)) {
+      return { sentence: ex.replace(re, '___'), answer: target.toLowerCase() };
+    }
+  }
+  return { sentence: ex + ' (Vul in: ___.)', answer: lemma.toLowerCase() };
+}
+
+function sentencePoolFor(w) {
+  const extras = FILL_EXTRA[w.lemma] || [];
+  return w.example ? [w.example, ...extras] : extras.length ? extras : [w.lemma + ' — ' + w.meaning];
+}
+
+function startFillIn(topicId) {
+  const pool = topicId
+    ? pack.words.filter(w => w.topic === topicId)
+    : pack.words.slice();
+  // Exclude recently used words; fall back to full pool if too few remain
+  let fresh = pool.filter(w => !_recentFillIds.includes(w.id));
+  if (fresh.length < 10) { _recentFillIds = []; fresh = pool.slice(); }
+  const shuffled = fresh.sort(() => Math.random() - 0.5).slice(0, 10);
+  // Track used IDs (rolling window, max 50)
+  _recentFillIds = [...shuffled.map(w => w.id), ..._recentFillIds].slice(0, 50);
+  const items = shuffled.map(w => {
+    const pool_ = sentencePoolFor(w);
+    const { sentence, answer } = blankSentence(w, pool_);
+    return { word: w, sentence, answer };
+  });
+  // Word bank: the 10 lemmas in shuffled order
+  const wordBank = [...items].map(it => it.word.lemma).sort(() => Math.random() - 0.5);
+  ui.fillIn = { items, wordBank, answers: Array(10).fill(''), submitted: false };
+  ui.view = 'fill-in';
+  render();
+  setTimeout(() => { const f = document.querySelector('.fill-input'); if (f) f.focus(); }, 50);
+}
+
+function fillInView() {
+  const fi = ui.fillIn;
+  let correctCount = 0;
+  if (fi.submitted) {
+    for (let i = 0; i < fi.items.length; i++) {
+      if (normalize(fi.answers[i]) === normalize(fi.items[i].answer)) correctCount++;
+    }
+  }
+  const passed = correctCount >= 8;
+
+  const rows = fi.items.map((item, i) => {
+    const ans = fi.answers[i] || '';
+    const correct = fi.submitted && normalize(ans) === normalize(item.answer);
+    const wrong   = fi.submitted && !correct;
+    const mark    = fi.submitted ? (correct ? '<span class="fill-mark correct" aria-label="correct">✓</span>' : '<span class="fill-mark wrong" aria-label="wrong">✗</span>') : '';
+    // Split sentence on blank placeholder and render input inline
+    const parts = item.sentence.split('___');
+    const before = html(parts[0] || '');
+    const after  = html(parts.slice(1).join('___'));
+    const input  = `<input class="fill-input${correct?' correct':wrong?' wrong':''}" type="text" data-idx="${i}" value="${html(ans)}" ${fi.submitted?'disabled':''} autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Answer ${i+1}">`;
+    const correction = wrong ? ` <span class="fill-correction">${html(item.answer)}</span>` : '';
+    return `<div class="fill-row">
+      <span class="fill-num">${i+1}.</span>
+      ${mark}
+      <span class="fill-sentence" lang="nl">${before}${input}${after}${correction}</span>
+    </div>`;
+  }).join('');
+
+  const wordPills = fi.wordBank.map(w => `<span class="pill">${html(w)}</span>`).join('');
+
+  const result = fi.submitted
+    ? `<div class="fill-result ${passed?'pass':'fail'}">
+        <strong>${correctCount}/10 correct — ${passed?'Goed zo! 🎉':'Blijf oefenen! 💪'}</strong>
+        <span class="small">${passed?'Goed genoeg (8 of meer).':'Probeer het opnieuw (minimaal 8 nodig).'}${fi.submitted && !passed ? '' : ''}</span>
+      </div>
+      <div class="row">${button('Nieuwe oefening →','fill-in-new')}${button('← Terug','home','','quiet')}</div>`
+    : `<div class="row">${button('Controleer antwoorden →','fill-in-submit')}${button('Nieuwe woorden','fill-in-new','','quiet')}${button('← Terug','home','','quiet')}</div>`;
+
+  return `<div class="eyebrow">Fill in the blank</div>
+  <h2>Vul het juiste woord in.</h2>
+  <p class="small muted" style="margin-bottom:12px">Use each word from the list once. Submit all 10 answers together.</p>
+  <div class="word-bank">${wordPills}</div>
+  <div class="fill-list">${rows}</div>
+  ${result}`;
+}
+/* ───────────────────────────────────────────────────────────────── */
 
 /* Round-robin across topics; preserve due order within each topic. */
 function interleave(items) {
@@ -1210,7 +2038,7 @@ function startLesson(topicId) {
   const listen = ['gist','detail'].flatMap(skill => chooseActivities(available.filter(q => q.skill === skill),1));
   for (const q of chooseActivities(available,2)) if (listen.length < 2 && !listen.some(x => x.id === q.id)) listen.push(q);
   const dictation = chooseActivities(pack.dictations.filter(q => q.topic === topicId),1)[0];
-  const writing = pack.writing.find(q => q.topic === topicId) || {id:'writing.default.'+topicId,topic:topicId,prompt:'Write two short Dutch sentences using today’s words.',starters:['Ik…'],checks:['I used today’s words.','My sentences communicate something about my life.'],model:words.slice(0,2).map(w => w.example).join(' ')};
+  const writing = pack.writing.find(q => q.topic === topicId) || {id:'writing.default.'+topicId,topic:topicId,prompt:'Write two short Dutch sentences using today\'s words.',starters:['Ik…'],checks:['I used today\'s words.','My sentences communicate something about my life.'],model:words.slice(0,2).map(w => w.example).join(' ')};
   const cards = [
     ...words.map(w => ({id:w.id,topic:topicId,type:'learn',stage:0})),
     ...words.map(w => ({id:w.id,topic:topicId,type:'recall',skill:'recall',stage:1})),
@@ -1260,7 +2088,7 @@ function lessonView() {
   if (!ui.run) return homeView();
   if (ui.run.complete) return summaryView();
   const c = current(), labels = ['Discover','Recall','Listen for meaning','Listen & write','Write a message'];
-  return `<div class="lesson"><div class="row between">${button('← Back','home','','quiet')}<span class="small muted">${ui.run.index+1} / ${ui.run.cards.length} · ${ui.run.mode==='daily'?'Today’s mixed practice':ui.run.mode==='review'?'Mixed review':html(topic(c.topic)?.english || 'Sentence practice')}</span></div>
+  return `<div class="lesson"><div class="row between">${button('← Back','home','','quiet')}<span class="small muted">${ui.run.index+1} / ${ui.run.cards.length} · ${ui.run.mode==='daily'?'Today\'s mixed practice':ui.run.mode==='review'?'Mixed review':html(topic(c.topic)?.english || 'Sentence practice')}</span></div>
   ${ui.run.mode==='lesson'?`<div class="steps" aria-label="Learning stage ${c.stage+1} of 5">${labels.map((l,i)=>`<i class="${i<=c.stage?'on':''}"></i>`).join('')}</div>`:'<div style="height:20px"></div>'}
   <div class="eyebrow">${c.type==='sentence'?'Focused sentence practice':ui.run.mode==='review'?SKILLS[c.skill]+' · only this skill is graded':labels[c.stage]}</div>
   ${c.type==='learn'?learnView():c.type==='sentence'?sentenceView():c.type==='writing'?writingView():c.type==='listening'?listeningView():c.type==='listenStudy'?listenStudyView():answerView()}</div>`;
@@ -1279,7 +2107,7 @@ function answerView() {
   return `<section class="panel"><h2>${heading}</h2>${prompt}${audio?audioControls():''}
   ${s.showCue && t.cue ? cueView(t) : ''}${s.revealed && audio ? `<div class="transcript" lang="nl">${html(c.type==='spelling'?t.lemma:t.text)}<p class="small muted" lang="en">Text support used · this is copying practice.</p></div>`:''}
   <form id="answer-form"><label class="field" for="answer">${c.type==='article'?'Type de or het':audio?'Your Dutch answer':'From memory'}</label><input id="answer" class="answer" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" value="${html(s.answer)}" placeholder="${c.type==='article'?'de or het…':'Your answer…'}">
-  <div class="row" style="margin-top:13px">${button(s.graded?'Check correction':'Check answer','submit-answer','type="submit"')}${button(c.type==='article'?'Show article':audio?'Show text':'Picture hint',c.type==='recall'?'hint-cue':'reveal','','quiet')}${button('I don’t know','show-answer','','quiet')}</div></form>
+  <div class="row" style="margin-top:13px">${button(s.graded?'Check correction':'Check answer','submit-answer','type="submit"')}${button(c.type==='article'?'Show article':audio?'Show text':'Picture hint',c.type==='recall'?'hint-cue':'reveal','','quiet')}${button('I don\'t know','show-answer','','quiet')}</div></form>
   ${feedbackView()}${s.graded&&!audio?memoryExtras(t):''}<div class="footer"><span class="small muted">${audio?'Audio support does not earn independent listening credit.':'Only '+SKILLS[c.skill].toLowerCase()+' is updated.'}</span>${button('Continue →','next',s.ready?'':'disabled')}</div></section>`;
 }
 function feedbackView() {
@@ -1396,7 +2224,7 @@ function answerChoice(index) {
   const ok = index === q.answer; s.choice = index;
   if (s.revealed) s.graded = true; else gradeCurrent(ok);
   s.ready = true; s.bad = !ok;
-  s.feedback = `<strong>${ok?'That’s right.':'Listen for this detail next time.'}</strong><p>${html(q.explanation)}</p><p lang="nl">${html(q.transcript)}</p><p class="small">${html(q.translation)}</p>${s.revealed?'<p class="small">Reading practice completed. Listening progress was not updated.</p>':''}`;
+  s.feedback = `<strong>${ok?'That\'s right.':'Listen for this detail next time.'}</strong><p>${html(q.explanation)}</p><p lang="nl">${html(q.transcript)}</p><p class="small">${html(q.translation)}</p>${s.revealed?'<p class="small">Reading practice completed. Listening progress was not updated.</p>':''}`;
   render();
 }
 function listenStudyView() {
@@ -1480,7 +2308,7 @@ function libraryView() {
 }
 function wordResults() {
   const words=pack.words.filter(w=>(ui.topic==='all'||w.topic===ui.topic)&&(noun(w)+' '+w.meaning).toLowerCase().includes(ui.search.toLowerCase()));
-  return words.length?`<p class="small muted" style="grid-column:1/-1">Showing ${Math.min(words.length,ui.limit)} of ${words.length} matching items</p>`+words.slice(0,ui.limit).map(w=>`<article class="word-card"><div class="cue">${cueSvg(w.cue.key,w.meaning)}</div><div class="word ${w.article||''}" lang="nl">${html(noun(w))}</div><p class="small muted">${html(w.meaning)}</p>
+  return words.length?`<p class="small muted" style="grid-column:1/-1">Showing ${Math.min(words.length,ui.limit)} of ${words.length} matching items</p>`+words.slice(0,ui.limit).map(w=>`<article class="word-card"><div class="cue">${cueSvg(w.cue.key,w.meaning,w.topic,w.cue.description)}</div><div class="word ${w.article||''}" lang="nl">${html(noun(w))}</div><p class="small muted">${html(w.meaning)}</p>
   <p class="example" lang="nl">${html(w.example)}</p><p class="translation">${html(w.translation)}</p><p class="small muted">${html(cueFor(w))}</p>${memoryExtras(w)}
   ${ui.editCue===w.id?`<label class="field" for="cue-edit">Your memory picture</label><textarea id="cue-edit" maxlength="300">${html(cueFor(w))}</textarea><div class="row">${button('Save cue','save-cue',`data-id="${html(w.id)}"`,'quiet')}${button('Cancel','cancel-cue','','quiet')}</div>`:button('Edit memory cue','edit-cue',`data-id="${html(w.id)}"`,'quiet')}
   <div class="row">${button('Recall','drill',`data-id="${html(w.id)}" data-skill="recall"`,'secondary')}${w.article?button('Article','drill',`data-id="${html(w.id)}" data-skill="article"`,'secondary'):''}${button('Spell','drill',`data-id="${html(w.id)}" data-skill="spelling"`,'secondary')}</div></article>`).join('')+(words.length>ui.limit?`<div class="load-more" style="grid-column:1/-1">${button('Show 24 more','more-words','','secondary')}</div>`:''):'<p class="muted">No words match. Try a different word or topic.</p>';
@@ -1587,6 +2415,17 @@ document.addEventListener('click', event => {
   event.preventDefault();
   switch(action) {
     case 'home': case 'reviews': case 'library': case 'sentences': navigate(action); break;
+    case 'fill-in-start': startFillIn(); break;
+    case 'fill-in-new': startFillIn(); break;
+    case 'fill-in-submit': {
+      if (!ui.fillIn) break;
+      // Collect any values still in the DOM (user may not have typed into every field)
+      document.querySelectorAll('.fill-input').forEach(inp => {
+        const idx = Number(inp.dataset.idx);
+        ui.fillIn.answers[idx] = inp.value;
+      });
+      ui.fillIn.submitted = true; render(); break;
+    }
     case 'resume': navigate('lesson'); break;
     case 'end-session': ui.run=null; navigate('home'); break;
     case 'daily': startDaily(); break;
@@ -1646,7 +2485,8 @@ document.addEventListener('click', event => {
 document.addEventListener('submit',event=>{if(event.target.id==='answer-form'){event.preventDefault();submitAnswer();}else if(event.target.id==='sentence-form'){event.preventDefault();checkSentence();}});
 document.addEventListener('input',event=>{
   const el=event.target;
-  if(el.id==='word-search'){ui.search=el.value;ui.limit=24;filterWords();}
+  if(el.classList.contains('fill-input')&&ui.fillIn){ui.fillIn.answers[Number(el.dataset.idx)]=el.value;}
+  else if(el.id==='word-search'){ui.search=el.value;ui.limit=24;filterWords();}
   else if(el.id==='answer'&&ui.run) currentState().answer=el.value;
   else if(el.id==='draft'&&ui.run){
     progress.drafts[current().id]=el.value; currentState().checked=false; currentState().checks=[]; save();
